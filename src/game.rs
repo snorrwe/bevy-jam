@@ -111,8 +111,8 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
             radius: Vec3::splat(150.),
         },
         filter: collision::CollisionFilter {
-            self_layers: collision::CollisionType::PLAYER,
-            collisions_mask: collision::CollisionType::PLAYER_COLLISIONS,
+            self_layers: collision::CollisionType::WORKER,
+            collisions_mask: collision::CollisionType::WORKER_COLLISIONS,
         },
         ..Default::default()
     })
