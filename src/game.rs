@@ -16,11 +16,26 @@ pub struct GameAssets {
     pub worker_body: Handle<TextureAtlas>,
 }
 
+#[derive(Default, Component)]
+pub struct ZOrderOffset {
+    pub offset: f32,
+}
+
 fn z_sorter(
-    mut q_transform: Query<(&mut Transform, &GlobalTransform), Without<Camera>>,
+    mut q_transform_without_z_order: Query<
+        (&mut Transform, &GlobalTransform),
+        (Without<Camera>, Without<ZOrderOffset>),
+    >,
+    mut q_transform_with_z_order: Query<
+        (&mut Transform, &GlobalTransform, &ZOrderOffset),
+        Without<Camera>,
+    >,
 ) {
-    for (mut tr, global_tr) in q_transform.iter_mut() {
-        tr.translation.z = -global_tr.translation().y; //TODO: Add offset component that can track other entity, and calculate own z from that and a given constant (for body parts)
+    for (mut tr, global_tr) in q_transform_without_z_order.iter_mut() {
+        tr.translation.z = -global_tr.translation().y;
+    }
+    for (mut tr, global_tr, z_order) in q_transform_with_z_order.iter_mut() {
+        tr.translation.z = -global_tr.translation().y + z_order.offset;
     }
 }
 
@@ -53,7 +68,7 @@ fn player_controll(
     let mut delta_movement = Vec2::new(0., 0.);
     handle_keyboard_movement(&mut delta_movement, &inputs);
 
-    let player_speed = 50.;
+    let player_speed = 300.;
 
     for mut tr in q_player.iter_mut() {
         tr.translation += delta_movement.extend(0.) * player_speed * delta_time;
@@ -96,7 +111,8 @@ fn setup_game(
         transform: Transform::from_scale(Vec3::new(1., 1., 1.)),
         ..Default::default()
     })
-    .insert(PlayerController);
+    .insert(PlayerController)
+    .insert(ZOrderOffset { offset: 100. });
 
     spawn_regular_unit(&mut cmd, &game_assets);
 }
@@ -126,11 +142,14 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
                 transform: Transform::from_translation(Vec3::new(0., 85., 0.)),
                 ..Default::default()
             })
+            .insert(ZOrderOffset { offset: 85. })
             .with_children(|child2| {
-                child2.spawn_bundle(SpriteSheetBundle {
-                    texture_atlas: game_assets.worker_eye.clone(),
-                    ..Default::default()
-                });
+                child2
+                    .spawn_bundle(SpriteSheetBundle {
+                        texture_atlas: game_assets.worker_eye.clone(),
+                        ..Default::default()
+                    })
+                    .insert(ZOrderOffset { offset: 85. });
             });
     });
 }
