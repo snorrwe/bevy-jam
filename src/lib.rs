@@ -21,6 +21,23 @@ fn setup_test(mut cmd: Commands) {
     });
 }
 
+#[derive(Clone, Copy, Default, Component)]
+pub struct PlayerCamera;
+
+fn setup_player_camera(mut cmd: Commands) {
+    cmd.spawn_bundle(Camera3dBundle::default())
+        .insert(PlayerCamera);
+}
+
+fn teardown_player_camera(
+    mut cmd: Commands,
+    q: Query<Entity, With<PlayerCamera>>,
+) {
+    for e in q.iter() {
+        cmd.entity(e).despawn_recursive();
+    }
+}
+
 pub fn app() -> App {
     let mut app = App::new();
     app.insert_resource(WindowDescriptor {
@@ -32,6 +49,14 @@ pub fn app() -> App {
     .add_plugins(DefaultPlugins)
     .add_plugin(collision::CollisionPlugin)
     .add_startup_system(setup_test) // FIXME: remove
-    .add_state(SceneState::InGame); // FIXME: main menu
+    .add_state(SceneState::InGame)
+    .add_system_set(
+        SystemSet::on_enter(SceneState::InGame)
+            .with_system(setup_player_camera),
+    )
+    .add_system_set(
+        SystemSet::on_exit(SceneState::InGame)
+            .with_system(teardown_player_camera),
+    ); // FIXME: main menu
     app
 }
