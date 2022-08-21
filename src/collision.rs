@@ -1,4 +1,8 @@
+pub mod primitives;
+
 use bevy::{ecs::schedule::ShouldRun, prelude::*, transform::TransformSystem};
+
+use self::primitives::aabb_aabb;
 
 pub type LayerMask = u32;
 
@@ -170,15 +174,6 @@ pub struct CollisionPlugin;
 enum Labels {
     UpdateBoxes,
     Sweep,
-}
-
-pub fn aabb_aabb(a: &AABB, b: &AABB) -> bool {
-    for i in 0..3 {
-        if a.max[i] < b.min[i] || a.min[i] > b.max[i] {
-            return false;
-        }
-    }
-    true
 }
 
 fn update_boxes(mut q: Query<(&mut AABB, &AABBDescriptor, &GlobalTransform)>) {
