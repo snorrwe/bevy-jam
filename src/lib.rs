@@ -1,25 +1,18 @@
 mod collision;
 mod game;
+mod interaction;
 
 use bevy::{prelude::*, render::camera::*};
 
 pub const LAUNCHER_TITLE: &str = "Bevy Jam - TBA";
 
+#[derive(Debug, Default, Clone, Copy, Component)]
+pub struct Selectable;
+
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SceneState {
     MainMenu,
     InGame,
-}
-
-fn setup_test(mut cmd: Commands) {
-    cmd.spawn_bundle(collision::AABBBundle {
-        desc: collision::AABBDescriptor { radius: Vec3::ONE },
-        filter: collision::CollisionFilter {
-            self_layers: collision::CollisionType::PLAYER,
-            collisions_mask: collision::CollisionType::PLAYER_COLLISIONS,
-        },
-        ..Default::default()
-    });
 }
 
 #[derive(Clone, Copy, Default, Component)]
@@ -56,8 +49,8 @@ pub fn app() -> App {
     })
     .add_plugins(DefaultPlugins)
     .add_plugin(collision::CollisionPlugin)
+    .add_plugin(interaction::InteractionPlugin)
     .add_plugin(game::GamePlugin)
-    .add_startup_system(setup_test) // FIXME: remove
     .add_state(SceneState::InGame) // FIXME: main menu
     .add_system_set(
         SystemSet::on_enter(SceneState::InGame)

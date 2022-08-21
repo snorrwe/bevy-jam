@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::{collision, Selectable};
+
 pub struct GamePlugin;
 
 #[derive(Default, Component)]
@@ -102,9 +104,21 @@ fn setup_game(
 fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.worker_body.clone(),
-        transform: Transform::from_translation(Vec3::new(180., 0., 10.)),
         ..Default::default()
     })
+    .insert_bundle(collision::AABBBundle {
+        desc: collision::AABBDescriptor {
+            radius: Vec3::splat(150.),
+        },
+        filter: collision::CollisionFilter {
+            self_layers: collision::CollisionType::PLAYER,
+            collisions_mask: collision::CollisionType::PLAYER_COLLISIONS,
+        },
+        ..Default::default()
+    })
+    .insert(Selectable)
+    // multiple bundles have transforms, insert at the end for safety
+    .insert(Transform::from_translation(Vec3::new(180., 0., 10.)))
     .with_children(|child| {
         child
             .spawn_bundle(SpriteSheetBundle {
