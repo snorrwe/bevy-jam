@@ -2,6 +2,9 @@ use bevy::prelude::*;
 
 pub struct GamePlugin;
 
+#[derive(Default, Component)]
+pub struct PlayerController;
+
 #[derive(Default)]
 pub struct GameAssets {
     pub player_sprite: Handle<TextureAtlas>,
@@ -15,7 +18,43 @@ fn z_sorter(
     mut q_transform: Query<(&mut Transform, &GlobalTransform), Without<Camera>>,
 ) {
     for (mut tr, global_tr) in q_transform.iter_mut() {
-        tr.translation.z = global_tr.translation().y; //TODO: Add offset component that can track other entity, and calculate own z from that and a given constant (for body parts)
+        tr.translation.z = -global_tr.translation().y; //TODO: Add offset component that can track other entity, and calculate own z from that and a given constant (for body parts)
+    }
+}
+
+fn handle_keyboard_movement(delta: &mut Vec2, keyboard_input: &Input<KeyCode>) {
+    for key in keyboard_input.get_pressed() {
+        match key {
+            KeyCode::A | KeyCode::Left => {
+                delta.x -= 1.0;
+            }
+            KeyCode::D | KeyCode::Right => {
+                delta.x += 1.0;
+            }
+            KeyCode::W | KeyCode::Up => {
+                delta.y += 1.0;
+            }
+            KeyCode::S | KeyCode::Down => {
+                delta.y -= 1.0;
+            }
+            _ => {}
+        }
+    }
+}
+
+fn player_controll(
+    mut q_player: Query<&mut Transform, With<PlayerController>>,
+    inputs: Res<Input<KeyCode>>,
+    time: Res<Time>,
+) {
+    let delta_time = time.delta_seconds();
+    let mut delta_movement = Vec2::new(0., 0.);
+    handle_keyboard_movement(&mut delta_movement, &inputs);
+
+    let player_speed = 50.;
+
+    for mut tr in q_player.iter_mut() {
+        tr.translation += delta_movement.extend(0.) * player_speed * delta_time;
     }
 }
 
@@ -54,7 +93,8 @@ fn setup_game(
         texture_atlas: game_assets.player_sprite.clone(),
         transform: Transform::from_scale(Vec3::new(1., 1., 1.)),
         ..Default::default()
-    });
+    })
+    .insert(PlayerController);
 
     spawn_regular_unit(&mut cmd, &game_assets);
 }
@@ -85,6 +125,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameAssets::default())
             .add_startup_system(setup_game)
-            .add_system(z_sorter);
+            .add_system(z_sorter)
+            .add_system(player_controll);
     }
 }
