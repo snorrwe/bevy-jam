@@ -10,6 +10,7 @@ pub enum CollisionType {
     Terrain = 1,
     Enemy = 1 << 1,
     Player = 1 << 2,
+    Worker = 1 << 3,
 }
 
 impl CollisionType {
@@ -17,12 +18,14 @@ impl CollisionType {
     pub const TERRAIN: LayerMask = Self::Terrain as LayerMask;
     pub const ENEMY: LayerMask = Self::Enemy as LayerMask;
     pub const PLAYER: LayerMask = Self::Player as LayerMask;
+    pub const WORKER: LayerMask = Self::Worker as LayerMask;
 
     // special masks
     pub const PLAYER_COLLISIONS: LayerMask =
         CollisionType::ENEMY | CollisionType::TERRAIN;
     pub const ENEMY_COLLISIONS: LayerMask =
         CollisionType::PLAYER | CollisionType::TERRAIN;
+    pub const WORKER_COLLISIONS: LayerMask = CollisionType::ENEMY;
 }
 
 #[derive(Debug, Default, Clone, Copy, Component)]
