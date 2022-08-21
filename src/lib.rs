@@ -1,3 +1,5 @@
+mod collision;
+
 use bevy::prelude::*;
 
 pub const LAUNCHER_TITLE: &str = "Bevy Jam - TBA";
@@ -5,7 +7,18 @@ pub const LAUNCHER_TITLE: &str = "Bevy Jam - TBA";
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum SceneState {
     MainMenu,
-    MainGame,
+    InGame,
+}
+
+fn setup_test(mut cmd: Commands) {
+    cmd.spawn_bundle(collision::AABBBundle {
+        desc: collision::AABBDescriptor { radius: Vec3::ONE },
+        filter: collision::CollisionFilter {
+            self_layers: collision::CollisionType::PLAYER,
+            collisions_mask: collision::CollisionType::PLAYER_COLLISIONS,
+        },
+        ..Default::default()
+    });
 }
 
 pub fn app() -> App {
@@ -17,6 +30,8 @@ pub fn app() -> App {
         ..Default::default()
     })
     .add_plugins(DefaultPlugins)
-    .add_state(SceneState::MainGame); // FIXME: main menu
+    .add_plugin(collision::CollisionPlugin)
+    .add_startup_system(setup_test) // FIXME: remove
+    .add_state(SceneState::InGame); // FIXME: main menu
     app
 }
