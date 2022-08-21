@@ -49,7 +49,7 @@ pub fn app() -> App {
     .add_plugins(DefaultPlugins)
     .add_plugin(collision::CollisionPlugin)
     .add_startup_system(setup_test) // FIXME: remove
-    .add_state(SceneState::InGame)
+    .add_state(SceneState::InGame) // FIXME: main menu
     .add_system_set(
         SystemSet::on_enter(SceneState::InGame)
             .with_system(setup_player_camera),
@@ -57,6 +57,6 @@ pub fn app() -> App {
     .add_system_set(
         SystemSet::on_exit(SceneState::InGame)
             .with_system(teardown_player_camera),
-    ); // FIXME: main menu
+    );
     app
 }
