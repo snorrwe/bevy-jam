@@ -26,25 +26,15 @@ fn setup_test(mut cmd: Commands) {
 pub struct PlayerCamera;
 
 fn setup_player_camera(mut cmd: Commands) {
-    let mut camera_transform: Transform;
-    camera_transform = Transform::from_translation(Vec3::new(0., 38., -36.));
-    camera_transform.rotation = Quat::from_rotation_x(45.);
+    let mut camera_transform = Camera2dBundle::default().transform;
 
-    let mut camera_proj: PerspectiveProjection;
-    camera_proj = PerspectiveProjection::default();
-    camera_proj.fov = 20.;
-    camera_proj.near = 0.3;
-    camera_proj.far = 1000.;
+    camera_transform.scale = Vec3::splat(2.2);
 
-    let camera_bundle_3d = Camera3dBundle {
+    cmd.spawn_bundle(Camera2dBundle {
         transform: camera_transform,
-        projection: Projection::Perspective(camera_proj),
         ..Default::default()
-    };
-
-    let camera_bundle_2d = Camera2dBundle::default();
-
-    cmd.spawn_bundle(camera_bundle_2d).insert(PlayerCamera);
+    })
+    .insert(PlayerCamera);
 }
 
 fn teardown_player_camera(
