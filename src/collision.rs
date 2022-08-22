@@ -1,5 +1,8 @@
 pub mod primitives;
 
+#[cfg(feature = "debug_colliders")]
+pub mod debug_colliders;
+
 use bevy::{ecs::schedule::ShouldRun, prelude::*, transform::TransformSystem};
 
 use self::primitives::aabb_aabb;
@@ -65,6 +68,7 @@ pub(crate) struct AABBCollision {
 }
 
 #[derive(Default, Clone, Debug, Component)]
+#[cfg_attr(feature = "debug_gui", derive(Reflect))]
 pub struct AABB {
     pub min: Vec3,
     pub max: Vec3,
@@ -213,5 +217,24 @@ impl Plugin for CollisionPlugin {
                 .after(Labels::UpdateBoxes)
                 .label(Labels::Sweep),
         );
+
+        #[cfg(feature = "debug_gui")]
+        {
+            app.register_type::<AABB>();
+        }
+
+        #[cfg(feature = "debug_colliders")]
+        {
+            use bevy::sprite::Material2dPlugin;
+            app.add_plugin(
+                Material2dPlugin::<debug_colliders::AABBMaterial>::default(),
+            )
+            .insert_resource(debug_colliders::AABBVizAssets {
+                material: Handle::default(),
+            })
+            .add_startup_system(debug_colliders::setup)
+            .add_system(debug_colliders::update_aabb_meshes)
+            .add_system(debug_colliders::on_new_aabb);
+        }
     }
 }
