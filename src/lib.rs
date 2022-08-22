@@ -20,7 +20,6 @@ pub struct PlayerCamera;
 
 fn setup_player_camera(mut cmd: Commands) {
     let mut camera_transform = Camera2dBundle::default().transform;
-
     camera_transform.scale = Vec3::splat(2.2);
 
     cmd.spawn_bundle(Camera2dBundle {

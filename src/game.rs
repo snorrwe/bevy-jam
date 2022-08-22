@@ -32,10 +32,11 @@ fn z_sorter(
     >,
 ) {
     for (mut tr, global_tr) in q_transform_without_z_order.iter_mut() {
-        tr.translation.z = -global_tr.translation().y;
+        tr.translation.z = (-global_tr.translation().y) / 10000.;
     }
     for (mut tr, global_tr, z_order) in q_transform_with_z_order.iter_mut() {
-        tr.translation.z = -global_tr.translation().y + z_order.offset;
+        tr.translation.z =
+            (-global_tr.translation().y + z_order.offset) / 10000.;
     }
 }
 
@@ -149,7 +150,7 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
                         texture_atlas: game_assets.worker_eye.clone(),
                         ..Default::default()
                     })
-                    .insert(ZOrderOffset { offset: 85. });
+                    .insert(ZOrderOffset { offset: 85.1 });
             });
     });
 }
@@ -158,7 +159,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameAssets::default())
             .add_startup_system(setup_game)
-            .add_system(z_sorter)
+            .add_system_to_stage(CoreStage::PostUpdate, z_sorter)
             .add_system(player_controll);
     }
 }
