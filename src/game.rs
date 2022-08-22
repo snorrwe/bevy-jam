@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::{collision, Selectable};
+use crate::{collision, PlayerCamera, Selectable};
 
 pub struct GamePlugin;
 
@@ -34,12 +34,12 @@ fn z_sorter(
     >,
 ) {
     for (mut tr, global_tr) in q_transform_without_z_order.iter_mut() {
-        tr.translation.z = -global_tr.translation().y / 10000.;
+        tr.translation.z = -global_tr.translation().y / 1000.;
     }
 
     for (mut tr, global_tr, z_offset) in q_transform_with_z_order.iter_mut() {
         tr.translation.z =
-            -(global_tr.translation().y + z_offset.offset) / 10000.;
+            -(global_tr.translation().y + z_offset.offset) / 1000.;
     }
 }
 
@@ -63,7 +63,7 @@ fn handle_keyboard_movement(delta: &mut Vec2, keyboard_input: &Input<KeyCode>) {
     }
 }
 
-fn player_controll(
+fn player_controll_system(
     mut q_player: Query<&mut Transform, With<PlayerController>>,
     inputs: Res<Input<KeyCode>>,
     time: Res<Time>,
@@ -77,6 +77,20 @@ fn player_controll(
     for mut tr in q_player.iter_mut() {
         tr.translation += delta_movement.extend(0.) * player_speed * delta_time;
     }
+}
+
+fn camera_follow_player_system(
+    player_q: Query<&GlobalTransform, With<PlayerController>>,
+    mut camera_q: Query<&mut Transform, With<PlayerCamera>>,
+) {
+    let mut camera_tr = camera_q.single_mut();
+    let player_tr = player_q.single();
+
+    camera_tr.translation = Vec3::new(
+        player_tr.translation().x,
+        player_tr.translation().y,
+        camera_tr.translation.z,
+    );
 }
 
 fn setup_game(
@@ -168,6 +182,10 @@ impl Plugin for GamePlugin {
         app.insert_resource(GameAssets::default())
             .add_startup_system(setup_game)
             .add_system_to_stage(CoreStage::PostUpdate, z_sorter)
-            .add_system(player_controll);
+            .add_system(player_controll_system)
+            .add_system_to_stage(
+                CoreStage::PostUpdate,
+                camera_follow_player_system,
+            );
     }
 }
