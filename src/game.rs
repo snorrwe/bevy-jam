@@ -1,7 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
-    collision, worker_logic::UnitFollowPlayer, PlayerCamera, Selectable,
+    collision, interaction::MouseFollow, worker_logic::UnitFollowPlayer,
+    PlayerCamera, Selectable,
 };
 
 pub struct GamePlugin;
@@ -25,7 +26,63 @@ pub struct ZOffset {
     offset: f32,
 }
 
-fn z_sorter(
+#[derive(Component)]
+pub struct AvoidOthers;
+
+#[derive(Component)]
+pub struct SpawnAllies {
+    max_count: u32,
+    time_between_spawns: Timer,
+}
+
+fn avoid_others_system(
+    avoiders: Query<
+        (&GlobalTransform, Entity),
+        (With<AvoidOthers>, Without<MouseFollow>),
+    >,
+    mut transforms: Query<&mut Transform>,
+    time: Res<Time>,
+) {
+    let mut change_these_vec: Vec<(Entity, Vec3)> = vec![];
+    for (tr, e) in avoiders.iter() {
+        for (tr2, e2) in avoiders.iter() {
+            if e != e2 && (tr.translation() - tr2.translation()).length() < 70.
+            {
+                change_these_vec
+                    .push((e, tr.translation() - tr2.translation()));
+            }
+        }
+    }
+
+    for (e, dir) in change_these_vec.iter() {
+        if let Ok(mut tr) = transforms.get_mut(*e) {
+            tr.translation += dir.normalize() * time.delta_seconds() * 100.;
+        }
+    }
+}
+
+fn spawn_workers_system(
+    mut worker_spawners: Query<(&mut SpawnAllies, &GlobalTransform)>,
+    workers: Query<Entity, With<UnitFollowPlayer>>,
+    time: Res<Time>,
+    mut cmd: Commands,
+    game_assets: Res<GameAssets>,
+) {
+    for (mut spawner, global_tr) in worker_spawners.iter_mut() {
+        if workers.iter().len() < spawner.max_count as usize {
+            spawner.time_between_spawns.tick(time.delta());
+            if spawner.time_between_spawns.finished() {
+                spawn_regular_unit(
+                    &mut cmd,
+                    &game_assets,
+                    global_tr.translation(),
+                );
+            }
+        }
+    }
+}
+
+fn z_sorter_system(
     mut q_transform_without_z_order: Query<
         (&mut Transform, &GlobalTransform),
         (Without<Camera>, Without<DontSortZ>, Without<ZOffset>),
@@ -36,12 +93,12 @@ fn z_sorter(
     >,
 ) {
     for (mut tr, global_tr) in q_transform_without_z_order.iter_mut() {
-        tr.translation.z = -global_tr.translation().y / 1000.;
+        tr.translation.z = -global_tr.translation().y / 999999.;
     }
 
     for (mut tr, global_tr, z_offset) in q_transform_with_z_order.iter_mut() {
         tr.translation.z =
-            -(global_tr.translation().y + z_offset.offset) / 1000.;
+            -(global_tr.translation().y + z_offset.offset) / 999999.;
     }
 }
 
@@ -103,28 +160,35 @@ fn setup_game(
 ) {
     game_assets.player_sprite = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/player/blob.png"),
-        Vec2::new(364., 307.),
+        Vec2::new(146., 124.),
         1,
         1,
     ));
     game_assets.worker_body = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/workers/workerbody.png"),
-        Vec2::new(88., 104.),
+        Vec2::new(35., 42.),
         1,
         1,
     ));
     game_assets.worker_head = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/workers/workerhead.png"),
-        Vec2::new(89., 95.),
+        Vec2::new(37., 38.),
         1,
         1,
     ));
     game_assets.worker_eye = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/workers/workereyes.png"),
-        Vec2::new(106., 74.),
+        Vec2::new(47., 26.),
         1,
         1,
     ));
+    game_assets.worker_head_eating =
+        texture_atlases.add(TextureAtlas::from_grid(
+            asset_server.load("sprites/workers/headopenmouth.png"),
+            Vec2::new(71., 52.),
+            1,
+            1,
+        ));
 
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.player_sprite.clone(),
@@ -132,19 +196,23 @@ fn setup_game(
         ..Default::default()
     })
     .insert(PlayerController)
-    .insert(ZOffset { offset: -100. });
+    .insert(SpawnAllies {
+        max_count: 10,
+        time_between_spawns: Timer::from_seconds(1., true),
+    })
+    .insert(ZOffset { offset: -50. });
 
-    spawn_regular_unit(&mut cmd, &game_assets);
+    spawn_regular_unit(&mut cmd, &game_assets, Vec3::new(180., 10., 0.));
 }
 
-fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
+fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.worker_body.clone(),
         ..Default::default()
     })
     .insert_bundle(collision::AABBBundle {
         desc: collision::AABBDescriptor {
-            radius: Vec3::splat(150.),
+            radius: Vec3::splat(50.),
         },
         filter: collision::CollisionFilter {
             self_layers: collision::CollisionType::WORKER,
@@ -153,16 +221,15 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
         ..Default::default()
     })
     .insert(UnitFollowPlayer)
+    .insert(AvoidOthers)
     .insert(Selectable)
     // multiple bundles have transforms, insert at the end for safety
-    .insert(Transform::from_translation(Vec3::new(180., 0., 10.)))
+    .insert(Transform::from_translation(pos))
     .with_children(|child| {
         child
             .spawn_bundle(SpriteSheetBundle {
                 texture_atlas: game_assets.worker_head.clone(),
-                transform: Transform::from_translation(Vec3::new(
-                    0., 85., 0.001,
-                )),
+                transform: Transform::from_translation(Vec3::new(0., 35., 0.1)),
                 ..Default::default()
             })
             .insert(DontSortZ)
@@ -171,7 +238,7 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
                     .spawn_bundle(SpriteSheetBundle {
                         texture_atlas: game_assets.worker_eye.clone(),
                         transform: Transform::from_translation(Vec3::new(
-                            0., 0., 0.001,
+                            0., 0., 0.1,
                         )),
                         ..Default::default()
                     })
@@ -184,8 +251,10 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameAssets::default())
             .add_startup_system(setup_game)
-            .add_system_to_stage(CoreStage::PostUpdate, z_sorter)
+            .add_system_to_stage(CoreStage::PostUpdate, z_sorter_system)
             .add_system(player_controll_system)
+            .add_system(spawn_workers_system)
+            .add_system(avoid_others_system)
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 camera_follow_player_system,

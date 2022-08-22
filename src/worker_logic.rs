@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::game::PlayerController;
+use crate::{game::PlayerController, interaction::MouseFollow};
 
 pub struct WorkerLogicPlugin;
 
@@ -8,7 +8,10 @@ pub struct WorkerLogicPlugin;
 pub struct UnitFollowPlayer;
 
 fn player_follower_system(
-    mut q_player_followers: Query<&mut Transform, With<UnitFollowPlayer>>,
+    mut q_player_followers: Query<
+        &mut Transform,
+        (With<UnitFollowPlayer>, Without<MouseFollow>),
+    >,
     player: Query<&GlobalTransform, With<PlayerController>>,
     time: Res<Time>,
 ) {
