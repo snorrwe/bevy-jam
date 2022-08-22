@@ -17,26 +17,29 @@ pub struct GameAssets {
 }
 
 #[derive(Default, Component)]
-pub struct ZOrderOffset {
-    pub offset: f32,
+pub struct DontSortZ;
+#[derive(Default, Component)]
+pub struct ZOffset {
+    offset: f32,
 }
 
 fn z_sorter(
     mut q_transform_without_z_order: Query<
         (&mut Transform, &GlobalTransform),
-        (Without<Camera>, Without<ZOrderOffset>),
+        (Without<Camera>, Without<DontSortZ>, Without<ZOffset>),
     >,
     mut q_transform_with_z_order: Query<
-        (&mut Transform, &GlobalTransform, &ZOrderOffset),
-        Without<Camera>,
+        (&mut Transform, &GlobalTransform, &ZOffset),
+        (Without<Camera>, Without<DontSortZ>),
     >,
 ) {
     for (mut tr, global_tr) in q_transform_without_z_order.iter_mut() {
-        tr.translation.z = (-global_tr.translation().y) / 10000.;
+        tr.translation.z = -global_tr.translation().y / 10000.;
     }
-    for (mut tr, global_tr, z_order) in q_transform_with_z_order.iter_mut() {
+
+    for (mut tr, global_tr, z_offset) in q_transform_with_z_order.iter_mut() {
         tr.translation.z =
-            (-global_tr.translation().y + z_order.offset) / 10000.;
+            -(global_tr.translation().y + z_offset.offset) / 10000.;
     }
 }
 
@@ -113,7 +116,7 @@ fn setup_game(
         ..Default::default()
     })
     .insert(PlayerController)
-    .insert(ZOrderOffset { offset: 100. });
+    .insert(ZOffset { offset: -100. });
 
     spawn_regular_unit(&mut cmd, &game_assets);
 }
@@ -140,17 +143,22 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
         child
             .spawn_bundle(SpriteSheetBundle {
                 texture_atlas: game_assets.worker_head.clone(),
-                transform: Transform::from_translation(Vec3::new(0., 85., 0.)),
+                transform: Transform::from_translation(Vec3::new(
+                    0., 85., 0.001,
+                )),
                 ..Default::default()
             })
-            .insert(ZOrderOffset { offset: 85. })
+            .insert(DontSortZ)
             .with_children(|child2| {
                 child2
                     .spawn_bundle(SpriteSheetBundle {
                         texture_atlas: game_assets.worker_eye.clone(),
+                        transform: Transform::from_translation(Vec3::new(
+                            0., 0., 0.001,
+                        )),
                         ..Default::default()
                     })
-                    .insert(ZOrderOffset { offset: 85.1 });
+                    .insert(DontSortZ);
             });
     });
 }
