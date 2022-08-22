@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 
-use crate::{collision, PlayerCamera, Selectable};
+use crate::{
+    collision, worker_logic::UnitFollowPlayer, PlayerCamera, Selectable,
+};
 
 pub struct GamePlugin;
 
@@ -150,6 +152,7 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets) {
         },
         ..Default::default()
     })
+    .insert(UnitFollowPlayer)
     .insert(Selectable)
     // multiple bundles have transforms, insert at the end for safety
     .insert(Transform::from_translation(Vec3::new(180., 0., 10.)))

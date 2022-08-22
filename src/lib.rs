@@ -1,6 +1,7 @@
 mod collision;
 mod game;
 mod interaction;
+mod worker_logic;
 
 use bevy::{prelude::*, render::camera::*};
 
@@ -21,6 +22,7 @@ pub struct PlayerCamera;
 fn setup_player_camera(mut cmd: Commands) {
     let mut camera_transform = Camera2dBundle::default().transform;
     camera_transform.scale = Vec3::splat(2.2);
+    camera_transform.scale = Vec3::splat(1.);
 
     cmd.spawn_bundle(Camera2dBundle {
         transform: camera_transform,
@@ -50,6 +52,7 @@ pub fn app() -> App {
     .add_plugin(collision::CollisionPlugin)
     .add_plugin(interaction::InteractionPlugin)
     .add_plugin(game::GamePlugin)
+    .add_plugin(worker_logic::WorkerLogicPlugin)
     .add_state(SceneState::InGame) // FIXME: main menu
     .add_system_set(
         SystemSet::on_enter(SceneState::InGame)
