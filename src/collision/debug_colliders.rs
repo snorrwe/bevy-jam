@@ -1,25 +1,9 @@
 use bevy::asset::Handle;
 use bevy::prelude::shape::Box;
 use bevy::render::render_resource::AsBindGroup;
-use bevy::render::render_resource::{
-    BindGroupEntry, BindGroupLayoutDescriptor, BindGroupLayoutEntry,
-    BufferSize, ShaderStages,
-};
-use bevy::sprite::{
-    Material2d, Material2dPipeline, MaterialMesh2dBundle, Mesh2dHandle,
-};
-use bevy::{
-    ecs::system::lifetimeless::SRes,
-    prelude::*,
-    reflect::TypeUuid,
-    render::{
-        render_asset::RenderAsset,
-        render_resource::{
-            BindGroup, BindGroupDescriptor, Buffer, BufferUsages,
-        },
-        renderer::RenderDevice,
-    },
-};
+
+use bevy::sprite::{Material2d, MaterialMesh2dBundle, Mesh2dHandle};
+use bevy::{prelude::*, reflect::TypeUuid};
 
 use super::AABBDescriptor;
 
@@ -82,16 +66,22 @@ pub(crate) fn update_aabb_meshes(
     qp: Query<&AABBDescriptor, Changed<AABBDescriptor>>,
 ) {
     for (mesh, _, parent) in q.iter() {
-    //     if let Ok(desc) = qp.get(**parent) {
-    //         let mesh = meshes.get_mut(mesh).unwrap();
-    //
-    //         *mesh = Box {
-    //             size: desc.radius.truncate(),
-    //             flip: false,
-    //         }
-    //         .into();
-    //     }
-        todo!()
+        if let Ok(desc) = qp.get(**parent) {
+            let radius = desc.radius;
+            let [min_x, min_y, min_z] = (-radius).to_array();
+            let [max_x, max_y, max_z] = radius.to_array();
+            let mesh = meshes.get_mut(mesh).unwrap();
+
+            *mesh = Box {
+                min_x,
+                min_y,
+                min_z,
+                max_x,
+                max_y,
+                max_z,
+            }
+            .into();
+        }
     }
 }
 

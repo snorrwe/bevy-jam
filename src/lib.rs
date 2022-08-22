@@ -3,7 +3,7 @@ mod game;
 mod interaction;
 mod worker_logic;
 
-use bevy::{prelude::*, render::camera::*};
+use bevy::prelude::*;
 
 pub const LAUNCHER_TITLE: &str = "Bevy Jam - TBA";
 
