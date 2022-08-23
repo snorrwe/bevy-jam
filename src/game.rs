@@ -1,11 +1,13 @@
-use bevy::prelude::*;
-
 use crate::{
     collision,
     interaction::MouseFollow,
-    worker_logic::{CanEatWorker, UnitFollowPlayer, WorkerEye, WorkerHead},
+    worker_logic::{
+        CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye, WorkerHead,
+    },
     PlayerCamera, Selectable,
 };
+use bevy::prelude::*;
+use rand::Rng;
 
 pub struct GamePlugin;
 
@@ -208,6 +210,13 @@ fn setup_game(
 }
 
 fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
+    let starter_colors = [
+        Color::rgb(0., 1., 0.),
+        Color::rgb(0., 0., 1.),
+        Color::rgb(1., 0., 0.),
+    ];
+    let mut rng = rand::thread_rng();
+
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.worker_body.clone(),
         ..Default::default()
@@ -225,6 +234,9 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
     .insert(UnitFollowPlayer)
     .insert(AvoidOthers)
     .insert(Selectable)
+    .insert(WorkerColor {
+        color: starter_colors[rng.gen_range(0..starter_colors.len())],
+    })
     .insert(CanEatWorker {
         entity_to_eat: None,
     })

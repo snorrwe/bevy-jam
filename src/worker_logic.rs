@@ -17,8 +17,32 @@ pub struct WorkerEye;
 pub struct UnitFollowPlayer;
 
 #[derive(Component)]
+pub struct WorkerColor {
+    pub color: Color,
+}
+
+#[derive(Component)]
 pub struct CanEatWorker {
     pub entity_to_eat: Option<Entity>,
+}
+
+fn color_worker_body_system(
+    children: Query<&Children>,
+    mut worker_color: Query<
+        (&WorkerColor, &mut TextureAtlasSprite, Entity),
+        Without<WorkerHead>,
+    >,
+    mut worker_head: Query<&mut TextureAtlasSprite, With<WorkerHead>>,
+) {
+    for (color, mut sprite, e) in worker_color.iter_mut() {
+        sprite.color = color.color;
+
+        get_children_recursive(e, &children, &mut |child| {
+            if let Ok(mut head_sprite) = worker_head.get_mut(child) {
+                head_sprite.color = color.color;
+            }
+        });
+    }
 }
 
 fn change_head_system(
@@ -114,6 +138,7 @@ impl Plugin for WorkerLogicPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(player_follower_system)
             .add_system(eat_other_worker_system)
-            .add_system(change_head_system);
+            .add_system(change_head_system)
+            .add_system(color_worker_body_system);
     }
 }

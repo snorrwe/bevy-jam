@@ -1,7 +1,9 @@
 use bevy::{math::Vec3A, prelude::*, render::camera::*};
 
 use crate::{
-    collision::AABB, worker_logic::CanEatWorker, PlayerCamera, Selectable,
+    collision::AABB,
+    worker_logic::{CanEatWorker, WorkerColor},
+    PlayerCamera, Selectable,
 };
 
 pub struct InteractionPlugin;
@@ -117,6 +119,7 @@ fn deselect_on_mouse_up(
     mut selected: ResMut<Selected>,
     mut cmd: Commands,
     mut eater: Query<(&mut CanEatWorker, Entity)>,
+    mut worker_color: Query<(&mut WorkerColor, &mut Transform)>,
 ) {
     if btn.just_released(MouseButton::Left) {
         if let Some(e) = selected.0 {
@@ -127,6 +130,25 @@ fn deselect_on_mouse_up(
                     if entity_to_eat == e {
                         info!("{:?} ate {:?}", eater_entity, e);
                         cmd.entity(e).despawn_recursive();
+                    }
+
+                    let mut prey_color: Color = Color::BLACK;
+                    let mut prey_size: f32 = 0.;
+                    if let Ok((prey_c, prey_tr)) = worker_color.get_mut(e) {
+                        prey_color = prey_c.color;
+                        prey_size = prey_tr.scale.x;
+                    }
+                    if prey_size != 0. {
+                        if let Ok((mut eater_color, mut tr)) =
+                            worker_color.get_mut(eater_entity)
+                        {
+                            eater_color.color = Color::rgb(
+                                (eater_color.color.r() + prey_color.r()) / 2.,
+                                (eater_color.color.g() + prey_color.g()) / 2.,
+                                (eater_color.color.b() + prey_color.b()) / 2.,
+                            );
+                            tr.scale += prey_size / 10.;
+                        }
                     }
 
                     selected.0 = None;
