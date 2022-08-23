@@ -40,7 +40,6 @@ fn health_change_system(
 ) {
     for event in health_changed_events.iter() {
         if let Ok((mut health, _)) = health_query.get_mut(event.target) {
-            info!("Got health change event!");
             health.current_health += event.amount;
             health.current_health =
                 health.current_health.clamp(0., health.max_health);
@@ -49,7 +48,6 @@ fn health_change_system(
 
     for (health, e) in health_query.iter() {
         if health.current_health <= 0. {
-            info!("Sending deat event!!");
             destroy_event_writer.send(DestroyEntity(e));
         }
     }

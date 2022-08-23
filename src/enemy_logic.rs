@@ -87,8 +87,8 @@ fn spawn_regular_enemy(
     })
     .insert(CombatComponent {
         target: None,
-        damage: 0.5,
-        time_between_attacks: Timer::from_seconds(0.7, true),
+        damage: 10.,
+        time_between_attacks: Timer::from_seconds(0.5, true),
         attack_range: 120.,
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
