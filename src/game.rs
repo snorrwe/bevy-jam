@@ -44,23 +44,44 @@ fn avoid_others_system(
         (&GlobalTransform, Entity),
         (With<AvoidOthers>, Without<MouseFollow>),
     >,
+    player: Query<
+        &GlobalTransform,
+        (With<PlayerController>, Without<AvoidOthers>),
+    >,
     mut transforms: Query<&mut Transform>,
     time: Res<Time>,
 ) {
     let mut change_these_vec: Vec<(Entity, Vec3)> = vec![];
+    let player_tr = player.single();
+    let player_tr_vec2 = player_tr.translation().truncate();
     for (tr, e) in avoiders.iter() {
+        let tr_vec2 = tr.translation().truncate();
+
         for (tr2, e2) in avoiders.iter() {
-            if e != e2 && (tr.translation() - tr2.translation()).length() < 70.
-            {
-                change_these_vec
-                    .push((e, tr.translation() - tr2.translation()));
+            let tr2_vec2 = tr2.translation().truncate();
+            if e != e2 && (tr_vec2 - tr2_vec2).length() < 70. {
+                change_these_vec.push((e, (tr_vec2 - tr2_vec2).extend(0.)));
             }
+        }
+
+        if (tr_vec2 - player_tr_vec2).length() < 100. {
+            change_these_vec.push((e, (tr_vec2 - player_tr_vec2).extend(0.)));
         }
     }
 
     for (e, dir) in change_these_vec.iter() {
         if let Ok(mut tr) = transforms.get_mut(*e) {
-            tr.translation += dir.normalize() * time.delta_seconds() * 100.;
+            let mut direction = *dir;
+            if direction == Vec3::ZERO {
+                let mut rng = rand::thread_rng();
+                direction = Vec3::new(
+                    rng.gen_range(-1.0..=1.0),
+                    rng.gen_range(-1.0..=1.0),
+                    0.,
+                );
+            }
+            tr.translation +=
+                direction.normalize() * time.delta_seconds() * 100.;
         }
     }
 }
@@ -79,7 +100,7 @@ fn spawn_workers_system(
                 spawn_regular_unit(
                     &mut cmd,
                     &game_assets,
-                    global_tr.translation(),
+                    global_tr.translation() + Vec3::new(100., 100., 0.),
                 );
             }
         }

@@ -58,7 +58,6 @@ fn mouse_follow_system(
             for mut tr in followers.iter_mut() {
                 tr.translation =
                     Vec3::new(cursor_world.x, cursor_world.y, tr.translation.z);
-                info!("Tr translation: {:?}", tr.translation);
             }
         }
     }
