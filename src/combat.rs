@@ -38,7 +38,7 @@ fn combat_system(
 ) {
     for (mut combat_comp, mut tr, vel, e) in combatant.iter_mut() {
         if !matches!(combat_comp.attack_state, AttackState::NotAttacking) {
-            break;
+            continue;
         }
         combat_comp.time_between_attacks.tick(time.delta());
         let mut own_global_pos = Vec2::ZERO;

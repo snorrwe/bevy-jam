@@ -42,7 +42,7 @@ fn ally_targetting_logic_system(
             for enemy in enemies.iter() {
                 if let Ok(enemy_tr) = transforms.get(enemy) {
                     if (ally_pos - enemy_tr.translation().truncate()).length()
-                        < 300.
+                        < 200.
                     {
                         ally_combat.target = Some(enemy);
                         break;

@@ -279,7 +279,7 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
         target: None,
         damage: 1.,
         time_between_attacks: Timer::from_seconds(1., true),
-        attack_range: 100.,
+        attack_range: 60.,
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
     })
