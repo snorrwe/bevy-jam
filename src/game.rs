@@ -1,6 +1,8 @@
 use crate::{
     collision,
+    combat::{AttackState, AttackType, CombatComponent},
     enemy_logic::EnemySpawner,
+    health::Health,
     interaction::MouseFollow,
     worker_logic::{
         CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye, WorkerHead,
@@ -30,6 +32,8 @@ pub struct DontSortZ;
 pub struct ZOffset {
     offset: f32,
 }
+#[derive(Component)]
+pub struct Velocity(pub f32);
 
 #[derive(Component)]
 pub struct AvoidOthers;
@@ -260,11 +264,24 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
     .insert(UnitFollowPlayer)
     .insert(AvoidOthers)
     .insert(Selectable)
+    .insert(Velocity(100.))
     .insert(WorkerColor {
         color: starter_colors[rng.gen_range(0..starter_colors.len())],
     })
     .insert(CanEatWorker {
         entity_to_eat: None,
+    })
+    .insert(Health {
+        current_health: 3.,
+        max_health: 3.,
+    })
+    .insert(CombatComponent {
+        target: None,
+        damage: 1.,
+        time_between_attacks: Timer::from_seconds(1., true),
+        attack_range: 100.,
+        attack_type: AttackType::Melee,
+        attack_state: AttackState::NotAttacking,
     })
     // multiple bundles have transforms, insert at the end for safety
     .insert(Transform::from_translation(pos))

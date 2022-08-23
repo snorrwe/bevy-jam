@@ -1,11 +1,18 @@
 use bevy::prelude::*;
 
-use crate::collision;
+use crate::{
+    collision,
+    combat::{AttackState, AttackType, CombatComponent},
+    game::Velocity,
+    health::Health,
+    worker_logic::UnitFollowPlayer,
+};
 use rand::Rng;
 #[derive(Default)]
 pub struct EnemyAssets {
     basic_enemy_sprite: Handle<TextureAtlas>,
 }
+pub struct EnemyLogicPlugin;
 
 #[derive(Component)]
 pub struct BasicEnemyLogic;
@@ -16,7 +23,17 @@ pub struct EnemySpawner {
     pub distance_from_spawn_point: f32,
 }
 
-pub struct EnemyLogicPlugin;
+fn enemy_targetting_logic_system(
+    mut enemies: Query<&mut CombatComponent, With<BasicEnemyLogic>>,
+    allys: Query<Entity, With<UnitFollowPlayer>>,
+) {
+    //TODO: find closest ally that the enemy can attack
+    for mut enemy_combat in enemies.iter_mut() {
+        if enemy_combat.target == None {
+            enemy_combat.target = allys.iter().next();
+        }
+    }
+}
 
 fn enemy_spawner_system(
     time: Res<Time>,
@@ -64,7 +81,21 @@ fn spawn_regular_enemy(
         },
         ..Default::default()
     })
-    .insert(Transform::from_translation(pos));
+    .insert(Health {
+        current_health: 2.,
+        max_health: 2.,
+    })
+    .insert(CombatComponent {
+        target: None,
+        damage: 0.5,
+        time_between_attacks: Timer::from_seconds(0.7, true),
+        attack_range: 120.,
+        attack_type: AttackType::Melee,
+        attack_state: AttackState::NotAttacking,
+    })
+    .insert(Transform::from_translation(pos))
+    .insert(Velocity(70.))
+    .insert(BasicEnemyLogic);
 }
 
 fn setup_system(
@@ -85,6 +116,7 @@ impl Plugin for EnemyLogicPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(EnemyAssets::default())
             .add_startup_system(setup_system)
-            .add_system(enemy_spawner_system);
+            .add_system(enemy_spawner_system)
+            .add_system(enemy_targetting_logic_system);
     }
 }

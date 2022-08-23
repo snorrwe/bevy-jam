@@ -1,6 +1,8 @@
 mod collision;
+mod combat;
 mod enemy_logic;
 mod game;
+mod health;
 mod interaction;
 mod worker_logic;
 
@@ -68,6 +70,8 @@ pub fn app() -> App {
     .add_plugin(game::GamePlugin)
     .add_plugin(worker_logic::WorkerLogicPlugin)
     .add_plugin(enemy_logic::EnemyLogicPlugin)
+    .add_plugin(health::HealthPlugin)
+    .add_plugin(combat::CombatPlugin)
     .add_state(SceneState::InGame) // FIXME: main menu
     .add_system_set(
         SystemSet::on_enter(SceneState::InGame)

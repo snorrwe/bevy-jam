@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
+    combat::CombatComponent,
+    enemy_logic::BasicEnemyLogic,
     game::{GameAssets, PlayerController},
     get_children_recursive,
-    interaction::MouseFollow,
-    interaction::Selected,
+    interaction::{MouseFollow, Selected},
 };
 
 pub struct WorkerLogicPlugin;
@@ -24,6 +25,18 @@ pub struct WorkerColor {
 #[derive(Component)]
 pub struct CanEatWorker {
     pub entity_to_eat: Option<Entity>,
+}
+
+fn ally_targetting_logic_system(
+    mut allys: Query<&mut CombatComponent, With<UnitFollowPlayer>>,
+    enemies: Query<Entity, With<BasicEnemyLogic>>,
+) {
+    //TODO: find closest enemy that the worker can attack
+    for mut ally_combat in allys.iter_mut() {
+        if ally_combat.target == None {
+            ally_combat.target = enemies.iter().next();
+        }
+    }
 }
 
 fn color_worker_body_system(
@@ -113,24 +126,26 @@ fn eat_other_worker_system(
 
 fn player_follower_system(
     mut q_player_followers: Query<
-        &mut Transform,
+        (&mut Transform, &CombatComponent),
         (With<UnitFollowPlayer>, Without<MouseFollow>),
     >,
     player: Query<&GlobalTransform, With<PlayerController>>,
     time: Res<Time>,
 ) {
     let player_tr = player.single();
-    for mut tr in q_player_followers.iter_mut() {
-        let direction_vector = player_tr.translation() - tr.translation;
+    for (mut tr, cc) in q_player_followers.iter_mut() {
+        if matches!(cc.target, None) {
+            let direction_vector = player_tr.translation() - tr.translation;
 
-        let direction_vector = direction_vector.truncate();
-        if direction_vector.length() < 200. {
-            continue;
+            let direction_vector = direction_vector.truncate();
+            if direction_vector.length() < 200. {
+                continue;
+            }
+            let direction_vector = direction_vector.normalize();
+
+            tr.translation +=
+                direction_vector.extend(0.) * time.delta_seconds() * 150.;
         }
-        let direction_vector = direction_vector.normalize();
-
-        tr.translation +=
-            direction_vector.extend(0.) * time.delta_seconds() * 150.;
     }
 }
 
@@ -139,6 +154,7 @@ impl Plugin for WorkerLogicPlugin {
         app.add_system(player_follower_system)
             .add_system(eat_other_worker_system)
             .add_system(change_head_system)
-            .add_system(color_worker_body_system);
+            .add_system(color_worker_body_system)
+            .add_system(ally_targetting_logic_system);
     }
 }
