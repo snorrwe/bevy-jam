@@ -1,18 +1,58 @@
 use bevy::prelude::*;
 
 use crate::{
-    collision::AABBCollision, game::PlayerController, interaction::MouseFollow,
+    game::{GameAssets, PlayerController},
+    get_children_recursive,
+    interaction::MouseFollow,
     interaction::Selected,
 };
 
 pub struct WorkerLogicPlugin;
 
 #[derive(Component)]
+pub struct WorkerHead;
+#[derive(Component)]
+pub struct WorkerEye;
+#[derive(Component)]
 pub struct UnitFollowPlayer;
 
 #[derive(Component)]
 pub struct CanEatWorker {
     pub entity_to_eat: Option<Entity>,
+}
+
+fn change_head_system(
+    mut cmd: Commands,
+    children: Query<&Children>,
+    heads: Query<&Handle<TextureAtlas>, With<WorkerHead>>,
+    mut eyes: Query<&mut TextureAtlasSprite, With<WorkerEye>>,
+    can_eats: Query<(Entity, &CanEatWorker)>,
+    assets: Res<GameAssets>,
+) {
+    for (e, eater) in can_eats.iter() {
+        get_children_recursive(e, &children, &mut |child| {
+            if let Ok(texture_handle) = heads.get(child) {
+                if let Some(_) = eater.entity_to_eat {
+                    if *texture_handle != assets.worker_head_eating {
+                        cmd.entity(child)
+                            .insert(assets.worker_head_eating.clone());
+                    }
+                } else {
+                    if *texture_handle != assets.worker_head {
+                        cmd.entity(child).insert(assets.worker_head.clone());
+                    }
+                }
+            }
+
+            if let Ok(mut texture_atlas_sprite) = eyes.get_mut(child) {
+                if let Some(_) = eater.entity_to_eat {
+                    texture_atlas_sprite.color = Color::rgba(0., 0., 0., 0.);
+                } else {
+                    texture_atlas_sprite.color = Color::rgba(1., 1., 1., 1.);
+                }
+            }
+        });
+    }
 }
 
 fn eat_other_worker_system(
@@ -26,16 +66,23 @@ fn eat_other_worker_system(
 
             for (mut can_eat, e) in can_eat_workers.iter_mut() {
                 can_eat.entity_to_eat = None;
+                if e == selected_e {
+                    continue;
+                }
                 if let Ok(can_eat_tr) = global_tr.get(e) {
                     if (can_eat_tr.translation().truncate()
                         - selected_entity_pos.truncate())
                     .length()
-                        < 10.
+                        < 50.
                     {
                         can_eat.entity_to_eat = Some(selected_e);
                     }
                 }
             }
+        }
+    } else {
+        for (mut can_eat, _) in can_eat_workers.iter_mut() {
+            can_eat.entity_to_eat = None;
         }
     }
 }
@@ -66,6 +113,7 @@ fn player_follower_system(
 impl Plugin for WorkerLogicPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(player_follower_system)
-            .add_system(eat_other_worker_system);
+            .add_system(eat_other_worker_system)
+            .add_system(change_head_system);
     }
 }

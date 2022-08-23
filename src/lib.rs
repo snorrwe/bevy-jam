@@ -40,6 +40,19 @@ fn teardown_player_camera(
     }
 }
 
+pub fn get_children_recursive(
+    entity: Entity,
+    children_query: &Query<&Children>,
+    callback: &mut impl FnMut(Entity),
+) {
+    if let Ok(children) = children_query.get(entity) {
+        for child in children.iter() {
+            callback(*child);
+            get_children_recursive(*child, children_query, callback);
+        }
+    }
+}
+
 pub fn app() -> App {
     let mut app = App::new();
     app.insert_resource(WindowDescriptor {

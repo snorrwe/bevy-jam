@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     collision,
     interaction::MouseFollow,
-    worker_logic::{CanEatWorker, UnitFollowPlayer},
+    worker_logic::{CanEatWorker, UnitFollowPlayer, WorkerEye, WorkerHead},
     PlayerCamera, Selectable,
 };
 
@@ -238,6 +238,7 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
                 ..Default::default()
             })
             .insert(DontSortZ)
+            .insert(WorkerHead)
             .with_children(|child2| {
                 child2
                     .spawn_bundle(SpriteSheetBundle {
@@ -247,7 +248,8 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
                         )),
                         ..Default::default()
                     })
-                    .insert(DontSortZ);
+                    .insert(DontSortZ)
+                    .insert(WorkerEye);
             });
     });
 }
