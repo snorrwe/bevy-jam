@@ -2,20 +2,21 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::lerp::Lerp;
+use crate::{lerp::Lerp, particles::Easing};
 
 #[derive(Clone)]
 pub struct Animation<T> {
     from: T,
     to: T,
     timer: Timer,
-    // TODO: easing
+    easing: Easing,
 }
 
 impl<T: Lerp> Animation<T> {
     pub fn tick(&mut self, dt: Duration) -> T {
         self.timer.tick(dt);
         let t = self.timer.percent();
+        let t = self.easing.get_easing(t);
         self.from.lerp(&self.to, t)
     }
 }
