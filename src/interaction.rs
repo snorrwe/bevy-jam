@@ -3,7 +3,7 @@ use bevy::{math::Vec3A, prelude::*, render::camera::*};
 use crate::{
     collision::AABB,
     worker_logic::{CanEatWorker, WorkerColor},
-    PlayerCamera, Selectable,
+    ChangeTimeScaleEvent, PlayerCamera, Selectable, DEFAULT_TIME_SCALE,
 };
 
 pub struct InteractionPlugin;
@@ -76,6 +76,7 @@ fn select_worker_system(
     mut selected: ResMut<Selected>,
     btn: Res<Input<MouseButton>>,
     mut cmd: Commands,
+    mut time_event: EventWriter<ChangeTimeScaleEvent>,
 ) {
     for m in cur_move.iter() {
         let win = windows.get(m.id).expect("window not found");
@@ -109,6 +110,9 @@ fn select_worker_system(
         selected.0 = hovered.0;
         if let Some(e) = selected.0 {
             cmd.entity(e).insert(MouseFollow);
+            time_event.send(ChangeTimeScaleEvent {
+                new_time_scale: 0.1 * DEFAULT_TIME_SCALE,
+            });
         }
     }
 }
@@ -119,9 +123,13 @@ fn deselect_on_mouse_up(
     mut cmd: Commands,
     mut eater: Query<(&mut CanEatWorker, Entity)>,
     mut worker_color: Query<(&mut WorkerColor, &mut Transform)>,
+    mut time_event: EventWriter<ChangeTimeScaleEvent>,
 ) {
     if btn.just_released(MouseButton::Left) {
-        if let Some(e) = selected.0 {
+        if let Some(e) = selected.0.take() {
+            time_event.send(ChangeTimeScaleEvent {
+                new_time_scale: DEFAULT_TIME_SCALE,
+            });
             cmd.entity(e).remove::<MouseFollow>();
 
             for (eats, eater_entity) in eater.iter_mut() {
@@ -155,7 +163,6 @@ fn deselect_on_mouse_up(
                 }
             }
         }
-        selected.0 = None;
     }
 }
 

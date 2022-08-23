@@ -27,7 +27,6 @@ pub enum SceneState {
 pub struct GameTime {
     pub real_delta: Duration,
     pub time_scale: f32,
-    pub time_to_reset_time_scale: Timer,
 }
 
 impl Default for GameTime {
@@ -35,7 +34,6 @@ impl Default for GameTime {
         GameTime {
             real_delta: Duration::default(),
             time_scale: DEFAULT_TIME_SCALE,
-            time_to_reset_time_scale: Timer::default(),
         }
     }
 }
@@ -60,8 +58,6 @@ impl GameTime {
 pub struct ChangeTimeScaleEvent {
     /// TimeScale cant be negative for now.
     pub new_time_scale: f32,
-    /// Timescale will be reset after N seconds
-    pub seconds_to_change: f32,
 }
 
 const DEFAULT_TIME_SCALE: f32 = 1.0;
@@ -76,14 +72,6 @@ fn game_time_update(
 
     for event in change_events.iter() {
         game_time.time_scale = event.new_time_scale;
-        game_time.time_to_reset_time_scale =
-            Timer::from_seconds(event.seconds_to_change, false);
-    }
-
-    game_time.time_to_reset_time_scale.tick(delta);
-
-    if game_time.time_to_reset_time_scale.just_finished() {
-        game_time.time_scale = DEFAULT_TIME_SCALE;
     }
 }
 
