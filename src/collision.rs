@@ -181,7 +181,7 @@ enum Labels {
 }
 
 fn update_boxes(mut q: Query<(&mut AABB, &AABBDescriptor, &GlobalTransform)>) {
-    q.for_each_mut(|(mut aabb, desc, tr)| {
+    q.par_for_each_mut(128, |(mut aabb, desc, tr)| {
         let radius = desc.radius * tr.compute_transform().scale;
         let radius = radius.abs();
         let pos = tr.translation();
