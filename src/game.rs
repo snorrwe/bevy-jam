@@ -1,5 +1,6 @@
 use crate::{
     collision,
+    enemy_logic::EnemySpawner,
     interaction::MouseFollow,
     worker_logic::{
         CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye, WorkerHead,
@@ -224,6 +225,10 @@ fn setup_game(
     .insert(SpawnAllies {
         max_count: 10,
         time_between_spawns: Timer::from_seconds(1., true),
+    })
+    .insert(EnemySpawner {
+        time_between_spawns: Timer::from_seconds(3., true),
+        distance_from_spawn_point: 300.,
     })
     .insert(ZOffset { offset: -50. });
 
