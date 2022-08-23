@@ -9,6 +9,8 @@ mod lerp;
 mod particles;
 mod worker_logic;
 
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 pub const LAUNCHER_TITLE: &str = "Bevy Jam - TBA";
@@ -20,6 +22,69 @@ pub struct Selectable;
 pub enum SceneState {
     MainMenu,
     InGame,
+}
+
+pub struct GameTime {
+    pub real_delta: Duration,
+    pub time_scale: f32,
+    pub time_to_reset_time_scale: Timer,
+}
+
+impl Default for GameTime {
+    fn default() -> Self {
+        GameTime {
+            real_delta: Duration::default(),
+            time_scale: DEFAULT_TIME_SCALE,
+            time_to_reset_time_scale: Timer::default(),
+        }
+    }
+}
+
+impl GameTime {
+    pub fn delta_seconds(&self) -> f32 {
+        let delta_secs = self.real_delta.as_secs() as f32
+            + self.real_delta.subsec_nanos() as f32 * 1e-9;
+
+        // clamp delta-time to 0.1 sec
+        delta_secs.min(0.1) * self.time_scale
+    }
+
+    pub fn delta(&self) -> Duration {
+        // clamp delta-time to 0.1 sec
+        self.real_delta
+            .min(Duration::from_millis(100))
+            .mul_f32(self.time_scale)
+    }
+}
+
+pub struct ChangeTimeScaleEvent {
+    /// TimeScale cant be negative for now.
+    pub new_time_scale: f32,
+    /// Timescale will be reset after N seconds
+    pub seconds_to_change: f32,
+}
+
+const DEFAULT_TIME_SCALE: f32 = 1.0;
+
+fn game_time_update(
+    time: Res<Time>,
+    mut game_time: ResMut<GameTime>,
+    mut change_events: EventReader<ChangeTimeScaleEvent>,
+) {
+    let delta = time.delta();
+    game_time.real_delta = delta;
+
+    for event in change_events.iter() {
+        game_time.time_scale = event.new_time_scale;
+        game_time.time_to_reset_time_scale =
+            Timer::from_seconds(event.seconds_to_change, false);
+    }
+
+    game_time.time_to_reset_time_scale.tick(delta);
+
+    if game_time.time_to_reset_time_scale.just_finished() {
+        game_time.time_scale = DEFAULT_TIME_SCALE;
+    }
 }
 
 #[derive(Clone, Copy, Default, Component)]
@@ -83,8 +148,14 @@ pub fn app() -> App {
             .with_system(setup_player_camera),
     )
     .add_system_set(
+        SystemSet::on_update(SceneState::InGame).with_system(game_time_update),
+    )
+    .add_system_set(
         SystemSet::on_exit(SceneState::InGame)
             .with_system(teardown_player_camera),
-    );
+    )
+    .insert_resource(GameTime::default())
+    .add_event::<ChangeTimeScaleEvent>();
+
     app
 }

@@ -7,7 +7,7 @@ use crate::{
     worker_logic::{
         CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye, WorkerHead,
     },
-    PlayerCamera, Selectable,
+    GameTime, PlayerCamera, Selectable,
 };
 use bevy::prelude::*;
 use rand::Rng;
@@ -54,7 +54,7 @@ fn avoid_others_system(
         (With<PlayerController>, Without<AvoidOthers>),
     >,
     mut transforms: Query<&mut Transform>,
-    time: Res<Time>,
+    time: Res<GameTime>,
 ) {
     let mut change_these_vec: Vec<(Entity, Vec3)> = vec![];
     let player_tr = player.single();
@@ -94,7 +94,7 @@ fn avoid_others_system(
 fn spawn_workers_system(
     mut worker_spawners: Query<(&mut SpawnAllies, &GlobalTransform)>,
     workers: Query<Entity, With<UnitFollowPlayer>>,
-    time: Res<Time>,
+    time: Res<GameTime>,
     mut cmd: Commands,
     game_assets: Res<GameAssets>,
 ) {
@@ -155,7 +155,7 @@ fn handle_keyboard_movement(delta: &mut Vec2, keyboard_input: &Input<KeyCode>) {
 fn player_controll_system(
     mut q_player: Query<&mut Transform, With<PlayerController>>,
     inputs: Res<Input<KeyCode>>,
-    time: Res<Time>,
+    time: Res<GameTime>,
 ) {
     let delta_time = time.delta_seconds();
     let mut delta_movement = Vec2::new(0., 0.);

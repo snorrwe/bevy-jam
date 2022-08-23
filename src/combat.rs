@@ -1,4 +1,4 @@
-use crate::{game::Velocity, health::HealthChangedEvent};
+use crate::{game::Velocity, health::HealthChangedEvent, GameTime};
 use bevy::prelude::*;
 
 pub enum AttackType {
@@ -26,7 +26,7 @@ pub struct CombatComponent {
 }
 
 fn combat_system(
-    time: Res<Time>,
+    time: Res<GameTime>,
     mut combatant: Query<(
         &mut CombatComponent,
         &mut Transform,

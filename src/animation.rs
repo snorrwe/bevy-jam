@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::{lerp::Lerp, particles::Easing};
+use crate::{lerp::Lerp, particles::Easing, GameTime};
 
 #[derive(Clone)]
 pub struct Animation<T> {
@@ -25,7 +25,7 @@ impl<T: Lerp> Animation<T> {
 pub struct RotationAnimation(pub Animation<Quat>);
 
 pub fn update_rotations_animations(
-    time: Res<Time>,
+    time: Res<GameTime>,
     mut q: Query<(&mut RotationAnimation, &mut Transform)>,
 ) {
     let dt = time.delta();

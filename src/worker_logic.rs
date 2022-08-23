@@ -6,6 +6,7 @@ use crate::{
     game::{GameAssets, PlayerController},
     get_children_recursive,
     interaction::{MouseFollow, Selected},
+    GameTime,
 };
 
 pub struct WorkerLogicPlugin;
@@ -144,7 +145,7 @@ fn player_follower_system(
         (With<UnitFollowPlayer>, Without<MouseFollow>),
     >,
     player: Query<&GlobalTransform, With<PlayerController>>,
-    time: Res<Time>,
+    time: Res<GameTime>,
 ) {
     let player_tr = player.single();
     for (mut tr, cc) in q_player_followers.iter_mut() {

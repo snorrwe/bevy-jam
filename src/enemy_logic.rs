@@ -6,6 +6,7 @@ use crate::{
     game::Velocity,
     health::Health,
     worker_logic::UnitFollowPlayer,
+    GameTime,
 };
 use rand::Rng;
 #[derive(Default)]
@@ -36,7 +37,7 @@ fn enemy_targetting_logic_system(
 }
 
 fn enemy_spawner_system(
-    time: Res<Time>,
+    time: Res<GameTime>,
     enemy_assets: Res<EnemyAssets>,
     mut cmd: Commands,
     mut enemy_spawners: Query<(&mut EnemySpawner, &GlobalTransform)>,

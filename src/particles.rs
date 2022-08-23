@@ -3,7 +3,7 @@ use std::{f32::consts::TAU, time::Duration};
 use bevy::prelude::*;
 use rand::Rng;
 
-use crate::lerp::Lerp;
+use crate::{lerp::Lerp, GameTime};
 
 #[derive(Default, Clone, Copy, Component)]
 pub struct Velocity(pub Vec3);
@@ -112,7 +112,7 @@ pub struct EmitterBundle {
 
 fn update_emitters_system(
     mut commands: Commands,
-    time: Res<Time>,
+    time: Res<GameTime>,
     mut q: Query<(&mut SpawnTimer, &SpawnConfig, &GlobalTransform)>,
 ) {
     let mut rng = rand::thread_rng();
@@ -189,7 +189,7 @@ fn particle_scaling_system(
 }
 
 fn particle_movement_system(
-    time: Res<Time>,
+    time: Res<GameTime>,
     mut q: ParamSet<(
         Query<(&mut Velocity, &Acceleration)>,
         Query<(&Velocity, &mut Transform, &Lifetime, &Easing)>,
@@ -206,7 +206,7 @@ fn particle_movement_system(
     });
 }
 
-fn update_lifetimes_system(time: Res<Time>, mut q: Query<&mut Lifetime>) {
+fn update_lifetimes_system(time: Res<GameTime>, mut q: Query<&mut Lifetime>) {
     let dt = time.delta();
     q.par_for_each_mut(128, move |mut lt| {
         lt.0.tick(dt);
