@@ -1,6 +1,8 @@
 use bevy::{math::Vec3A, prelude::*, render::camera::*};
 
-use crate::{collision::AABB, PlayerCamera, Selectable};
+use crate::{
+    collision::AABB, worker_logic::CanEatWorker, PlayerCamera, Selectable,
+};
 
 pub struct InteractionPlugin;
 
@@ -114,10 +116,23 @@ fn deselect_on_mouse_up(
     btn: Res<Input<MouseButton>>,
     mut selected: ResMut<Selected>,
     mut cmd: Commands,
+    mut eater: Query<(&mut CanEatWorker, Entity)>,
 ) {
     if btn.just_released(MouseButton::Left) {
         if let Some(e) = selected.0 {
             cmd.entity(e).remove::<MouseFollow>();
+
+            for (eats, eater_entity) in eater.iter_mut() {
+                if let Some(entity_to_eat) = eats.entity_to_eat {
+                    if entity_to_eat == e {
+                        info!("{:?} ate {:?}", eater_entity, e);
+                        cmd.entity(e).despawn_recursive();
+                    }
+
+                    selected.0 = None;
+                    return;
+                }
+            }
         }
         selected.0 = None;
     }
@@ -126,7 +141,7 @@ fn deselect_on_mouse_up(
 impl Plugin for InteractionPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(select_worker_system)
-            .add_system(deselect_on_mouse_up)
+            .add_system_to_stage(CoreStage::PostUpdate, deselect_on_mouse_up)
             .add_system(mouse_follow_system)
             .insert_resource(Hovered(None))
             .insert_resource(Selected(None));

@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 
 use crate::{
-    collision, interaction::MouseFollow, worker_logic::UnitFollowPlayer,
+    collision,
+    interaction::MouseFollow,
+    worker_logic::{CanEatWorker, UnitFollowPlayer},
     PlayerCamera, Selectable,
 };
 
@@ -223,6 +225,9 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
     .insert(UnitFollowPlayer)
     .insert(AvoidOthers)
     .insert(Selectable)
+    .insert(CanEatWorker {
+        entity_to_eat: None,
+    })
     // multiple bundles have transforms, insert at the end for safety
     .insert(Transform::from_translation(pos))
     .with_children(|child| {
