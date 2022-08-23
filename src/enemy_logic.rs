@@ -89,12 +89,12 @@ fn spawn_regular_enemy(
         target: None,
         damage: 10.,
         time_between_attacks: Timer::from_seconds(0.5, true),
-        attack_range: 120.,
+        attack_range: 100.,
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
     })
     .insert(Transform::from_translation(pos))
-    .insert(Velocity(70.))
+    .insert(Velocity(150.))
     .insert(BasicEnemyLogic);
 }
 

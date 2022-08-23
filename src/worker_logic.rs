@@ -28,13 +28,27 @@ pub struct CanEatWorker {
 }
 
 fn ally_targetting_logic_system(
-    mut allys: Query<&mut CombatComponent, With<UnitFollowPlayer>>,
+    mut allys: Query<(&mut CombatComponent, Entity), With<UnitFollowPlayer>>,
     enemies: Query<Entity, With<BasicEnemyLogic>>,
+    transforms: Query<&GlobalTransform>,
 ) {
     //TODO: find closest enemy that the worker can attack
-    for mut ally_combat in allys.iter_mut() {
+    for (mut ally_combat, e) in allys.iter_mut() {
         if ally_combat.target == None {
-            ally_combat.target = enemies.iter().next();
+            let mut ally_pos = Vec2::ZERO; //TODO: better error handling
+            if let Ok(ally_tr) = transforms.get(e) {
+                ally_pos = ally_tr.translation().truncate();
+            }
+            for enemy in enemies.iter() {
+                if let Ok(enemy_tr) = transforms.get(enemy) {
+                    if (ally_pos - enemy_tr.translation().truncate()).length()
+                        < 300.
+                    {
+                        ally_combat.target = Some(enemy);
+                        break;
+                    }
+                }
+            }
         }
     }
 }
