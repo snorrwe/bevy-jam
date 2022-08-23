@@ -4,6 +4,7 @@ mod enemy_logic;
 mod game;
 mod health;
 mod interaction;
+mod particles;
 mod worker_logic;
 
 use bevy::prelude::*;
