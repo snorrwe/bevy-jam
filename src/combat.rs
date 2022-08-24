@@ -105,6 +105,11 @@ fn combat_system(
                         combat_comp.attack_state = AttackState::AttackMiddle {
                             timer: Timer::from_seconds(0.3, false),
                         };
+
+                        health_changed_event_writer.send(HealthChangedEvent {
+                            amount: -combat_comp.damage,
+                            target: target,
+                        });
                     }
                 }
                 AttackState::AttackMiddle { ref mut timer } => {
@@ -118,13 +123,10 @@ fn combat_system(
                             timer: Timer::from_seconds(0.3, false),
                             easing: Easing::QuartOut,
                         }));
+
                         combat_comp.attack_state = AttackState::AttackEnd {
                             timer: Timer::from_seconds(0.3, false),
                         };
-                        health_changed_event_writer.send(HealthChangedEvent {
-                            amount: -combat_comp.damage,
-                            target: target,
-                        });
                     }
                 }
                 AttackState::AttackEnd { ref mut timer } => {

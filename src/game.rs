@@ -32,6 +32,7 @@ pub struct GameAssets {
     pub worker_head_eating: Handle<TextureAtlas>,
     pub worker_eye: Handle<TextureAtlas>,
     pub worker_body: Handle<TextureAtlas>,
+    pub circle_sprite: Handle<TextureAtlas>,
 }
 
 #[derive(Default, Component)]
@@ -267,6 +268,12 @@ fn setup_game(
             1,
             1,
         ));
+    game_assets.circle_sprite = texture_atlases.add(TextureAtlas::from_grid(
+        asset_server.load("sprites/misc/circle.png"),
+        Vec2::new(50., 50.),
+        1,
+        1,
+    ));
 
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.player_sprite.clone(),
