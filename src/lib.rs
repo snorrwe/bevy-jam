@@ -7,6 +7,7 @@ mod health;
 mod interaction;
 mod lerp;
 mod particles;
+mod ui;
 mod worker_logic;
 
 use std::time::Duration;
@@ -130,6 +131,7 @@ pub fn app() -> App {
     .add_plugin(combat::CombatPlugin)
     .add_plugin(animation::AnimationsPlugin)
     .add_plugin(particles::ParticlePlugin)
+    .add_plugin(ui::UIPlugin)
     .add_state(SceneState::InGame) // FIXME: main menu
     .add_system_set(
         SystemSet::on_enter(SceneState::InGame)

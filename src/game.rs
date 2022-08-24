@@ -47,7 +47,7 @@ pub struct BloodrockNode {
 }
 
 #[derive(Default)]
-pub struct LifeSoulAmount(usize);
+pub struct BloodrockAmount(pub usize);
 
 #[derive(Component)]
 pub struct Harvester {
@@ -94,7 +94,7 @@ fn harvester_logic_system(
         (With<PlayerController>, Without<Harvester>),
     >,
     mut destroy_event_writer: EventWriter<DestroyEntity>,
-    mut life_soul_amount: ResMut<LifeSoulAmount>,
+    mut life_soul_amount: ResMut<BloodrockAmount>,
 ) {
     let player_pos = player_pos_q.single().translation().truncate();
 
@@ -593,7 +593,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameAssets::default())
             .insert_resource(ResourceAssets::default())
-            .insert_resource(LifeSoulAmount::default())
+            .insert_resource(BloodrockAmount(100))
             .add_startup_system(setup_game)
             .add_system_to_stage(CoreStage::PostUpdate, z_sorter_system)
             .add_system(player_controll_system)
