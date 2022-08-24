@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::{lerp::Lerp, particles::Easing, GameTime};
+use crate::{easing::Easing, lerp::Lerp, GameTime};
 
 #[derive(Clone)]
 pub struct Animation<T> {

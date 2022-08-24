@@ -1,6 +1,7 @@
 mod animation;
 mod collision;
 mod combat;
+mod easing;
 mod enemy_logic;
 mod game;
 mod health;

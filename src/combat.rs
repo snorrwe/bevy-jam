@@ -1,8 +1,8 @@
 use crate::{
     animation::{Animation, RotationAnimation},
+    easing::Easing,
     game::{AvoidOthers, Velocity},
     health::HealthChangedEvent,
-    particles::Easing,
     GameTime,
 };
 use bevy::prelude::*;
