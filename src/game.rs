@@ -3,8 +3,10 @@ use crate::{
     collision,
     combat::{AttackState, AttackType, CombatComponent},
     enemy_logic::EnemySpawner,
+    get_children_recursive,
     health::{DestroyEntity, Health},
     interaction::MouseFollow,
+    lerp::Lerp,
     particles::Easing,
     worker_logic::{
         CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye, WorkerHead,
@@ -50,6 +52,9 @@ pub struct BloodrockNode {
 pub struct BloodrockAmount(pub usize);
 
 #[derive(Component)]
+pub struct WorkerResourceCarrySprite;
+
+#[derive(Component)]
 pub struct Harvester {
     pub target_node: Option<Entity>,
     pub harvest_speed: Timer,
@@ -75,6 +80,27 @@ pub struct AvoidOthers {
 pub struct SpawnAllies {
     max_count: u32,
     time_between_spawns: Timer,
+}
+
+fn harvester_carrying_something_system(
+    children: Query<&Children>,
+    harvesters: Query<(&Harvester, Entity)>,
+    mut carry_indicator_sprites: Query<
+        &mut Transform,
+        With<WorkerResourceCarrySprite>,
+    >,
+) {
+    for (harvester, e) in harvesters.iter() {
+        get_children_recursive(e, &children, &mut |child| {
+            if let Ok(mut child_tr) = carry_indicator_sprites.get_mut(child) {
+                child_tr.scale = Vec3::splat(0.).lerp(
+                    Vec3::splat(1.5),
+                    harvester.current_carried_resource as f32
+                        / harvester.max_carryable_resource as f32,
+                );
+            }
+        });
+    }
 }
 
 fn harvester_logic_system(
@@ -440,17 +466,26 @@ fn setup_game(
     .insert(ZOffset { offset: -50. });
 
     spawn_combat_unit(&mut cmd, &game_assets, Vec3::new(180., 10., 0.));
-    spawn_harvester_unit(&mut cmd, &game_assets, Vec3::new(0., 200., 0.));
+    spawn_harvester_unit(
+        &mut cmd,
+        &game_assets,
+        &resource_assets,
+        Vec3::new(0., 200., 0.),
+    );
 }
 
 fn spawn_harvester_unit(
     cmd: &mut Commands,
     game_assets: &GameAssets,
+    resource_assets: &ResourceAssets,
     pos: Vec3,
 ) {
     let starter_colors = [Color::rgb(1., 1., 1.)];
     let mut rng = rand::thread_rng();
 
+    let mut carry_sprite_transform =
+        Transform::from_translation(Vec3::new(0., 0., 0.12));
+    carry_sprite_transform.scale = Vec3::splat(0.);
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.worker_body.clone(),
         ..Default::default()
@@ -492,6 +527,14 @@ fn spawn_harvester_unit(
     // multiple bundles have transforms, insert at the end for safety
     .insert(Transform::from_translation(pos))
     .with_children(|child| {
+        child
+            .spawn_bundle(SpriteSheetBundle {
+                texture_atlas: resource_assets.bloodrock.clone(),
+                transform: carry_sprite_transform,
+                ..Default::default()
+            })
+            .insert(DontSortZ)
+            .insert(WorkerResourceCarrySprite);
         child
             .spawn_bundle(SpriteSheetBundle {
                 texture_atlas: game_assets.worker_head.clone(),
@@ -601,6 +644,7 @@ impl Plugin for GamePlugin {
             .add_system(avoid_others_system)
             .add_system(animate_on_movement_system)
             .add_system(harvester_logic_system)
+            .add_system(harvester_carrying_something_system)
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 camera_follow_player_system,
