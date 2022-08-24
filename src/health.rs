@@ -1,5 +1,5 @@
 use crate::{
-    combat::CombatComponent, game::GameAssets, particles, particles::Easing,
+    combat::CombatComponent, easing::Easing, game::GameAssets, particles,
 };
 use bevy::prelude::*;
 use std::time::Duration;

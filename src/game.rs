@@ -2,12 +2,11 @@ use crate::{
     animation::{Animation, RotationAnimation},
     collision,
     combat::{AttackState, AttackType, CombatComponent},
+    easing::Easing,
     enemy_logic::EnemySpawner,
     get_children_recursive,
     health::{DestroyEntity, Health},
     interaction::MouseFollow,
-    lerp::Lerp,
-    particles::Easing,
     worker_logic::{
         CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye, WorkerHead,
     },

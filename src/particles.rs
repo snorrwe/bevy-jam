@@ -3,7 +3,7 @@ use std::{f32::consts::TAU, time::Duration};
 use bevy::prelude::*;
 use rand::Rng;
 
-use crate::{lerp::Lerp, GameTime};
+use crate::{easing::Easing, lerp::Lerp, GameTime};
 
 #[derive(Default, Clone, Copy, Component)]
 pub struct Velocity(pub Vec3);
@@ -12,44 +12,13 @@ pub struct Acceleration(pub Vec3);
 #[derive(Default, Clone, Component)]
 pub struct Lifetime(pub Timer);
 
-#[derive(Clone, Component)]
-pub enum Easing {
-    None,
-    Linear,
-    QuartOutInverted,
-    QuartOut,
-    OutElastic,
-    PulsateInOutCubic,
-    PulsateInOutCubicShifted,
-}
+/// Particles that survive their lifetime
+#[derive(Default, Clone, Copy, Component)]
+pub struct Persistent;
 
-impl Easing {
-    pub fn get_easing(&self, percent: f32) -> f32 {
-        match self {
-            Easing::None => 1.,
-            Easing::Linear => percent,
-            Easing::QuartOutInverted => 1. - ezing::quart_out(percent),
-            Easing::QuartOut => ezing::quart_out(percent),
-            Easing::OutElastic => ezing::elastic_out(percent),
-            Easing::PulsateInOutCubic => {
-                if percent < 0.5 {
-                    ezing::cubic_inout(percent * 2.)
-                } else {
-                    1. - ezing::circ_in((percent - 0.5) * 2.)
-                }
-            }
-            Easing::PulsateInOutCubicShifted => {
-                return Easing::PulsateInOutCubic.get_easing(percent) + 0.1;
-            }
-        }
-    }
-}
-
-impl Default for Easing {
-    fn default() -> Self {
-        Easing::None
-    }
-}
+/// Not emitting
+#[derive(Default, Clone, Copy, Component)]
+pub struct Disabled;
 
 #[derive(Default, Clone, Component)]
 pub struct SizeOverLifetime {
@@ -113,7 +82,10 @@ pub struct EmitterBundle {
 fn update_emitters_system(
     mut commands: Commands,
     time: Res<GameTime>,
-    mut q: Query<(&mut SpawnTimer, &SpawnConfig, &GlobalTransform)>,
+    mut q: Query<
+        (&mut SpawnTimer, &SpawnConfig, &GlobalTransform),
+        Without<Disabled>,
+    >,
 ) {
     let mut rng = rand::thread_rng();
     let delta = time.delta();
@@ -229,11 +201,25 @@ fn fade_sprites_system(
     });
 }
 
-fn kill_system(mut cmd: Commands, q: Query<(Entity, &Lifetime)>) {
+fn kill_system(
+    mut cmd: Commands,
+    q: Query<(Entity, &Lifetime), Without<Persistent>>,
+) {
     q.iter()
         .filter_map(|(e, lt)| (!lt.0.repeating() && lt.0.finished()).then(|| e))
         .for_each(|entity| {
             cmd.entity(entity).despawn_recursive();
+        });
+}
+
+fn disable_system(
+    mut cmd: Commands,
+    q: Query<(Entity, &Lifetime), With<Persistent>>,
+) {
+    q.iter()
+        .filter_map(|(e, lt)| (!lt.0.repeating() && lt.0.finished()).then(|| e))
+        .for_each(|entity| {
+            cmd.entity(entity).insert(Disabled);
         });
 }
 
@@ -246,6 +232,7 @@ impl Plugin for ParticlePlugin {
             .add_system(particle_scaling_system)
             .add_system(fade_sprites_system)
             .add_system(kill_system)
+            .add_system(disable_system)
             .add_system(update_emitters_system);
     }
 }
