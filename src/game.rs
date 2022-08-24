@@ -49,6 +49,9 @@ pub struct BloodrockNode {
 }
 
 #[derive(Default)]
+pub struct MaxSupplyAmount(pub usize);
+
+#[derive(Default)]
 pub struct BloodrockAmount(pub usize);
 
 #[derive(Component)]
@@ -78,8 +81,8 @@ pub struct AvoidOthers {
 
 #[derive(Component)]
 pub struct SpawnAllies {
-    max_count: u32,
-    time_between_spawns: Timer,
+    pub max_count: u32,
+    pub time_between_spawns: Timer,
 }
 
 fn harvester_carrying_something_system(
@@ -330,7 +333,11 @@ fn z_sorter_system(
     }
 }
 
-fn handle_keyboard_movement(delta: &mut Vec2, keyboard_input: &Input<KeyCode>) {
+fn handle_keyboard_movement(
+    delta: &mut Vec2,
+    pressed_space: &mut bool,
+    keyboard_input: &Input<KeyCode>,
+) {
     for key in keyboard_input.get_pressed() {
         match key {
             KeyCode::A | KeyCode::Left => {
@@ -345,6 +352,15 @@ fn handle_keyboard_movement(delta: &mut Vec2, keyboard_input: &Input<KeyCode>) {
             KeyCode::S | KeyCode::Down => {
                 delta.y -= 1.0;
             }
+
+            _ => {}
+        }
+    }
+    for key in keyboard_input.get_just_pressed() {
+        match key {
+            KeyCode::Space => {
+                *pressed_space = true;
+            }
             _ => {}
         }
     }
@@ -352,17 +368,35 @@ fn handle_keyboard_movement(delta: &mut Vec2, keyboard_input: &Input<KeyCode>) {
 
 fn player_controll_system(
     mut q_player: Query<&mut Transform, With<PlayerController>>,
+    workers: Query<Entity, With<UnitFollowPlayer>>,
     inputs: Res<Input<KeyCode>>,
     time: Res<GameTime>,
+    mut cmd: Commands,
+    game_assets: Res<GameAssets>,
+    mut bloodrock: ResMut<BloodrockAmount>,
+    max_supply: Res<MaxSupplyAmount>,
 ) {
     let delta_time = time.delta_seconds();
     let mut delta_movement = Vec2::new(0., 0.);
-    handle_keyboard_movement(&mut delta_movement, &inputs);
+    let mut pressed_space = false;
+    handle_keyboard_movement(&mut delta_movement, &mut pressed_space, &inputs);
 
     let player_speed = 300.;
 
     for mut tr in q_player.iter_mut() {
         tr.translation += delta_movement.extend(0.) * player_speed * delta_time;
+
+        if pressed_space
+            && workers.iter().len() < max_supply.0
+            && bloodrock.0 >= 10
+        {
+            bloodrock.0 -= 10;
+            spawn_combat_unit(
+                &mut cmd,
+                &game_assets,
+                tr.translation + Vec3::new(100., 100., 0.),
+            );
+        }
     }
 }
 
@@ -455,10 +489,6 @@ fn setup_game(
         ..Default::default()
     })
     .insert(PlayerController)
-    .insert(SpawnAllies {
-        max_count: 10,
-        time_between_spawns: Timer::from_seconds(5., true),
-    })
     .insert(EnemySpawner {
         time_between_spawns: Timer::from_seconds(5., true),
         distance_from_spawn_point: 400.,
@@ -636,6 +666,7 @@ impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameAssets::default())
             .insert_resource(ResourceAssets::default())
+            .insert_resource(MaxSupplyAmount(10))
             .insert_resource(BloodrockAmount(100))
             .add_startup_system(setup_game)
             .add_system_to_stage(CoreStage::PostUpdate, z_sorter_system)
