@@ -12,6 +12,14 @@ pub struct Acceleration(pub Vec3);
 #[derive(Default, Clone, Component)]
 pub struct Lifetime(pub Timer);
 
+/// Particles that survive their lifetime
+#[derive(Default, Clone, Copy, Component)]
+pub struct Persistent;
+
+/// Not emitting
+#[derive(Default, Clone, Copy, Component)]
+pub struct Disabled;
+
 #[derive(Default, Clone, Component)]
 pub struct SizeOverLifetime {
     pub start_size: Vec3,
@@ -74,7 +82,10 @@ pub struct EmitterBundle {
 fn update_emitters_system(
     mut commands: Commands,
     time: Res<GameTime>,
-    mut q: Query<(&mut SpawnTimer, &SpawnConfig, &GlobalTransform)>,
+    mut q: Query<
+        (&mut SpawnTimer, &SpawnConfig, &GlobalTransform),
+        Without<Disabled>,
+    >,
 ) {
     let mut rng = rand::thread_rng();
     let delta = time.delta();
@@ -190,11 +201,25 @@ fn fade_sprites_system(
     });
 }
 
-fn kill_system(mut cmd: Commands, q: Query<(Entity, &Lifetime)>) {
+fn kill_system(
+    mut cmd: Commands,
+    q: Query<(Entity, &Lifetime), Without<Persistent>>,
+) {
     q.iter()
         .filter_map(|(e, lt)| (!lt.0.repeating() && lt.0.finished()).then(|| e))
         .for_each(|entity| {
             cmd.entity(entity).despawn_recursive();
+        });
+}
+
+fn disable_system(
+    mut cmd: Commands,
+    q: Query<(Entity, &Lifetime), With<Persistent>>,
+) {
+    q.iter()
+        .filter_map(|(e, lt)| (!lt.0.repeating() && lt.0.finished()).then(|| e))
+        .for_each(|entity| {
+            cmd.entity(entity).insert(Disabled);
         });
 }
 
@@ -207,6 +232,7 @@ impl Plugin for ParticlePlugin {
             .add_system(particle_scaling_system)
             .add_system(fade_sprites_system)
             .add_system(kill_system)
+            .add_system(disable_system)
             .add_system(update_emitters_system);
     }
 }
