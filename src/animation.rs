@@ -6,10 +6,10 @@ use crate::{lerp::Lerp, particles::Easing, GameTime};
 
 #[derive(Clone)]
 pub struct Animation<T> {
-    from: T,
-    to: T,
-    timer: Timer,
-    easing: Easing,
+    pub from: T,
+    pub to: T,
+    pub timer: Timer,
+    pub easing: Easing,
 }
 
 impl<T: Lerp> Animation<T> {

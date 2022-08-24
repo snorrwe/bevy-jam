@@ -1,9 +1,11 @@
 use crate::{
+    animation::{Animation, RotationAnimation},
     collision,
     combat::{AttackState, AttackType, CombatComponent},
     enemy_logic::EnemySpawner,
     health::Health,
     interaction::MouseFollow,
+    particles::Easing,
     worker_logic::{
         CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye, WorkerHead,
     },
@@ -16,6 +18,12 @@ pub struct GamePlugin;
 
 #[derive(Default, Component)]
 pub struct PlayerController;
+
+#[derive(Default, Component)]
+pub struct MovementAnimationController {
+    is_moving: bool,
+    last_frame_pos: Vec3,
+}
 
 #[derive(Default)]
 pub struct GameAssets {
@@ -36,7 +44,9 @@ pub struct ZOffset {
 pub struct Velocity(pub f32);
 
 #[derive(Component)]
-pub struct AvoidOthers;
+pub struct AvoidOthers {
+    pub is_enabled: bool,
+}
 
 #[derive(Component)]
 pub struct SpawnAllies {
@@ -44,10 +54,45 @@ pub struct SpawnAllies {
     time_between_spawns: Timer,
 }
 
+fn animate_on_movement_system(
+    mut movement_animators: Query<(
+        &Transform,
+        &mut MovementAnimationController,
+        Entity,
+    )>,
+    mut cmd: Commands,
+) {
+    for (tr, mut mov, e) in movement_animators.iter_mut() {
+        if mov.is_moving == false {
+            if tr.translation != mov.last_frame_pos {
+                mov.is_moving = true;
+                cmd.entity(e).insert(RotationAnimation(Animation::<Quat> {
+                    from: Quat::from_rotation_z(-0.18),
+                    to: Quat::from_rotation_z(0.18),
+                    timer: Timer::from_seconds(0.5, true),
+                    easing: Easing::PulsateInOutCubic,
+                }));
+            }
+        } else {
+            if tr.translation == mov.last_frame_pos {
+                mov.is_moving = false;
+                cmd.entity(e).insert(RotationAnimation(Animation::<Quat> {
+                    from: Quat::from_rotation_z(tr.rotation.z),
+                    to: Quat::from_rotation_z(0.),
+                    timer: Timer::from_seconds(0.1, false),
+                    easing: Easing::Linear,
+                }));
+            }
+        }
+
+        mov.last_frame_pos = tr.translation;
+    }
+}
+
 fn avoid_others_system(
     avoiders: Query<
-        (&GlobalTransform, Entity),
-        (With<AvoidOthers>, Without<MouseFollow>),
+        (&GlobalTransform, Entity, &AvoidOthers),
+        Without<MouseFollow>,
     >,
     player: Query<
         &GlobalTransform,
@@ -59,10 +104,13 @@ fn avoid_others_system(
     let mut change_these_vec: Vec<(Entity, Vec3)> = vec![];
     let player_tr = player.single();
     let player_tr_vec2 = player_tr.translation().truncate();
-    for (tr, e) in avoiders.iter() {
+    for (tr, e, avoider) in avoiders.iter() {
+        if !avoider.is_enabled {
+            continue;
+        }
         let tr_vec2 = tr.translation().truncate();
 
-        for (tr2, e2) in avoiders.iter() {
+        for (tr2, e2, _) in avoiders.iter() {
             let tr2_vec2 = tr2.translation().truncate();
             if e != e2 && (tr_vec2 - tr2_vec2).length() < 70. {
                 change_these_vec.push((e, (tr_vec2 - tr2_vec2).extend(0.)));
@@ -262,8 +310,12 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
         ..Default::default()
     })
     .insert(UnitFollowPlayer)
-    .insert(AvoidOthers)
+    .insert(AvoidOthers { is_enabled: true })
     .insert(Selectable)
+    .insert(MovementAnimationController {
+        is_moving: false,
+        last_frame_pos: pos,
+    })
     .insert(Velocity(100.))
     .insert(WorkerColor {
         color: starter_colors[rng.gen_range(0..starter_colors.len())],
@@ -317,6 +369,7 @@ impl Plugin for GamePlugin {
             .add_system(player_controll_system)
             .add_system(spawn_workers_system)
             .add_system(avoid_others_system)
+            .add_system(animate_on_movement_system)
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 camera_follow_player_system,

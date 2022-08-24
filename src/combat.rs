@@ -1,4 +1,10 @@
-use crate::{game::Velocity, health::HealthChangedEvent, GameTime};
+use crate::{
+    animation::{Animation, RotationAnimation},
+    game::{AvoidOthers, Velocity},
+    health::HealthChangedEvent,
+    particles::Easing,
+    GameTime,
+};
 use bevy::prelude::*;
 
 pub enum AttackType {
@@ -33,8 +39,10 @@ fn combat_system(
         &Velocity,
         Entity,
     )>,
+    mut avoid_others: Query<&mut AvoidOthers>,
     transform_query: Query<&GlobalTransform>,
     mut health_changed_event_writer: EventWriter<HealthChangedEvent>,
+    mut cmd: Commands,
 ) {
     for (mut combat_comp, mut tr, vel, e) in combatant.iter_mut() {
         if !matches!(combat_comp.attack_state, AttackState::NotAttacking) {
@@ -56,6 +64,18 @@ fn combat_system(
                 if combat_comp.attack_range >= distance
                     && combat_comp.time_between_attacks.finished()
                 {
+                    if let Ok(mut avoid_other) = avoid_others.get_mut(e) {
+                        avoid_other.is_enabled = false;
+                    }
+                    cmd.entity(e).insert(RotationAnimation(
+                        Animation::<Quat> {
+                            from: Quat::from_rotation_z(0.),
+                            to: Quat::from_rotation_z(-0.5),
+                            timer: Timer::from_seconds(0.2, false),
+                            easing: Easing::QuartOut,
+                        },
+                    ));
+
                     combat_comp.attack_state = AttackState::AttackStart {
                         timer: Timer::from_seconds(0.3, false),
                     };
@@ -67,12 +87,21 @@ fn combat_system(
         }
     }
 
-    for (mut combat_comp, _, _, _) in combatant.iter_mut() {
+    for (mut combat_comp, _, _, e) in combatant.iter_mut() {
         if let Some(target) = combat_comp.target {
             match &mut combat_comp.attack_state {
                 AttackState::AttackStart { ref mut timer } => {
                     timer.tick(time.delta());
                     if timer.finished() {
+                        cmd.entity(e).insert(RotationAnimation(Animation::<
+                            Quat,
+                        > {
+                            from: Quat::from_rotation_z(-0.5),
+                            to: Quat::from_rotation_z(0.5),
+                            timer: Timer::from_seconds(0.15, false),
+                            easing: Easing::QuartOut,
+                        }));
+
                         combat_comp.attack_state = AttackState::AttackMiddle {
                             timer: Timer::from_seconds(0.3, false),
                         };
@@ -81,6 +110,14 @@ fn combat_system(
                 AttackState::AttackMiddle { ref mut timer } => {
                     timer.tick(time.delta());
                     if timer.finished() {
+                        cmd.entity(e).insert(RotationAnimation(Animation::<
+                            Quat,
+                        > {
+                            from: Quat::from_rotation_z(0.5),
+                            to: Quat::from_rotation_z(0.),
+                            timer: Timer::from_seconds(0.3, false),
+                            easing: Easing::QuartOut,
+                        }));
                         combat_comp.attack_state = AttackState::AttackEnd {
                             timer: Timer::from_seconds(0.3, false),
                         };
@@ -93,6 +130,9 @@ fn combat_system(
                 AttackState::AttackEnd { ref mut timer } => {
                     timer.tick(time.delta());
                     if timer.finished() {
+                        if let Ok(mut avoid_other) = avoid_others.get_mut(e) {
+                            avoid_other.is_enabled = true;
+                        }
                         combat_comp.attack_state = AttackState::NotAttacking;
                     }
                 }
