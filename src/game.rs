@@ -3,7 +3,7 @@ use crate::{
     collision,
     combat::{AttackState, AttackType, CombatComponent},
     enemy_logic::EnemySpawner,
-    health::Health,
+    health::{DestroyEntity, Health},
     interaction::MouseFollow,
     particles::Easing,
     worker_logic::{
@@ -35,6 +35,22 @@ pub struct GameAssets {
     pub circle_sprite: Handle<TextureAtlas>,
 }
 
+#[derive(Component)]
+pub struct LifeSoulResourceNode {
+    pub amount_of_resource: usize,
+}
+
+#[derive(Default)]
+pub struct LifeSoulAmount(usize);
+
+#[derive(Component)]
+pub struct Harvester {
+    pub target_node: Option<Entity>,
+    pub harvest_speed: Timer,
+    pub max_carryable_resource: usize,
+    pub current_carried_resource: usize,
+}
+
 #[derive(Default, Component)]
 pub struct DontSortZ;
 #[derive(Default, Component)]
@@ -53,6 +69,107 @@ pub struct AvoidOthers {
 pub struct SpawnAllies {
     max_count: u32,
     time_between_spawns: Timer,
+}
+
+fn harvester_logic_system(
+    time: Res<GameTime>,
+    mut harvesters: Query<(
+        &mut Harvester,
+        &mut Transform,
+        &GlobalTransform,
+        &Velocity,
+    )>,
+    mut nodes: Query<
+        (&GlobalTransform, &mut LifeSoulResourceNode, Entity),
+        (Without<Harvester>, Without<PlayerController>),
+    >,
+    player_pos_q: Query<
+        &GlobalTransform,
+        (With<PlayerController>, Without<Harvester>),
+    >,
+    mut destroy_event_writer: EventWriter<DestroyEntity>,
+    mut life_soul_amount: ResMut<LifeSoulAmount>,
+) {
+    let player_pos = player_pos_q.single().translation().truncate();
+
+    for (mut harvester, mut tr, global_tr, velocity) in harvesters.iter_mut() {
+        if let Some(target) = harvester.target_node {
+            if let Ok((node_tr, mut resource_node, _)) = nodes.get_mut(target) {
+                if (node_tr.translation().truncate()
+                    - global_tr.translation().truncate())
+                .length()
+                    < 60.
+                {
+                    harvester.harvest_speed.tick(time.delta());
+
+                    if harvester.harvest_speed.finished() {
+                        harvester.harvest_speed.reset();
+                        //Needs this check, since the node will be deleted in the postupdate stage
+                        if resource_node.amount_of_resource > 0 {
+                            resource_node.amount_of_resource -= 1;
+                            harvester.current_carried_resource += 1;
+
+                            harvester.current_carried_resource = harvester
+                                .current_carried_resource
+                                .clamp(0, harvester.max_carryable_resource);
+
+                            let resource_node_depleted =
+                                resource_node.amount_of_resource == 0;
+
+                            if resource_node_depleted {
+                                destroy_event_writer
+                                    .send(DestroyEntity(target));
+                            }
+                            if resource_node_depleted || {
+                                harvester.current_carried_resource
+                                    == harvester.max_carryable_resource
+                            } {
+                                harvester.target_node = None;
+                            }
+                        }
+                    }
+                } else {
+                    let dir = (node_tr.translation().truncate()
+                        - global_tr.translation().truncate())
+                    .extend(0.)
+                    .normalize();
+
+                    tr.translation += dir * time.delta_seconds() * velocity.0;
+                }
+            }
+        } else {
+            if harvester.current_carried_resource
+                == harvester.max_carryable_resource
+            {
+                if (player_pos - global_tr.translation().truncate()).length()
+                    < 60.
+                {
+                    life_soul_amount.0 += harvester.current_carried_resource;
+                    info!("Soul amount: {}", life_soul_amount.0);
+                    harvester.current_carried_resource = 0;
+                } else {
+                    let dir = (player_pos - global_tr.translation().truncate())
+                        .extend(0.)
+                        .normalize();
+
+                    tr.translation += dir * time.delta_seconds() * velocity.0;
+                }
+            } else {
+                let mut closest_node: (Option<Entity>, f32) = (None, 9999999.);
+                for (node_tr, _, e) in nodes.iter() {
+                    let distance = (global_tr.translation().truncate()
+                        - node_tr.translation().truncate())
+                    .length();
+                    if distance < closest_node.1 {
+                        closest_node.1 = distance;
+                        closest_node.0 = Some(e);
+                    }
+                }
+
+                harvester.target_node = closest_node.0;
+            }
+        }
+    }
 }
 
 fn animate_on_movement_system(
@@ -371,12 +488,14 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameAssets::default())
+            .insert_resource(LifeSoulAmount::default())
             .add_startup_system(setup_game)
             .add_system_to_stage(CoreStage::PostUpdate, z_sorter_system)
             .add_system(player_controll_system)
             .add_system(spawn_workers_system)
             .add_system(avoid_others_system)
             .add_system(animate_on_movement_system)
+            .add_system(harvester_logic_system)
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 camera_follow_player_system,

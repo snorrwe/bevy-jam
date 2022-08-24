@@ -15,7 +15,7 @@ pub struct HealthChangedEvent {
     pub amount: f32,
 }
 
-pub struct DestroyEntity(Entity);
+pub struct DestroyEntity(pub Entity);
 
 fn destroyer_system(
     mut cmd: Commands,
