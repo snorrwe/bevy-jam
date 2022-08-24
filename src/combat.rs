@@ -45,6 +45,9 @@ fn combat_system(
     mut cmd: Commands,
 ) {
     for (mut combat_comp, mut tr, vel, e) in combatant.iter_mut() {
+        if let Ok(mut avoid_other) = avoid_others.get_mut(e) {
+            avoid_other.is_enabled = !combat_comp.target.is_some();
+        }
         if !matches!(combat_comp.attack_state, AttackState::NotAttacking) {
             continue;
         }
@@ -64,9 +67,6 @@ fn combat_system(
                 if combat_comp.attack_range >= distance
                     && combat_comp.time_between_attacks.finished()
                 {
-                    if let Ok(mut avoid_other) = avoid_others.get_mut(e) {
-                        avoid_other.is_enabled = false;
-                    }
                     cmd.entity(e).insert(RotationAnimation(
                         Animation::<Quat> {
                             from: Quat::from_rotation_z(0.),
@@ -79,7 +79,7 @@ fn combat_system(
                     combat_comp.attack_state = AttackState::AttackStart {
                         timer: Timer::from_seconds(0.3, false),
                     };
-                } else {
+                } else if combat_comp.attack_range < distance {
                     tr.translation +=
                         direction.extend(0.) * time.delta_seconds() * vel.0;
                 }
@@ -97,8 +97,8 @@ fn combat_system(
                             Quat,
                         > {
                             from: Quat::from_rotation_z(-0.5),
-                            to: Quat::from_rotation_z(0.5),
-                            timer: Timer::from_seconds(0.15, false),
+                            to: Quat::from_rotation_z(0.7),
+                            timer: Timer::from_seconds(0.1, false),
                             easing: Easing::QuartOut,
                         }));
 
@@ -113,7 +113,7 @@ fn combat_system(
                         cmd.entity(e).insert(RotationAnimation(Animation::<
                             Quat,
                         > {
-                            from: Quat::from_rotation_z(0.5),
+                            from: Quat::from_rotation_z(0.7),
                             to: Quat::from_rotation_z(0.),
                             timer: Timer::from_seconds(0.3, false),
                             easing: Easing::QuartOut,
@@ -130,9 +130,6 @@ fn combat_system(
                 AttackState::AttackEnd { ref mut timer } => {
                     timer.tick(time.delta());
                     if timer.finished() {
-                        if let Ok(mut avoid_other) = avoid_others.get_mut(e) {
-                            avoid_other.is_enabled = true;
-                        }
                         combat_comp.attack_state = AttackState::NotAttacking;
                     }
                 }

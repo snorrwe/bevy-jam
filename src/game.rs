@@ -276,11 +276,11 @@ fn setup_game(
     .insert(PlayerController)
     .insert(SpawnAllies {
         max_count: 10,
-        time_between_spawns: Timer::from_seconds(1., true),
+        time_between_spawns: Timer::from_seconds(5., true),
     })
     .insert(EnemySpawner {
-        time_between_spawns: Timer::from_seconds(3., true),
-        distance_from_spawn_point: 300.,
+        time_between_spawns: Timer::from_seconds(5., true),
+        distance_from_spawn_point: 400.,
     })
     .insert(ZOffset { offset: -50. });
 
@@ -324,14 +324,14 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
         entity_to_eat: None,
     })
     .insert(Health {
-        current_health: 3.,
-        max_health: 3.,
+        current_health: 10.,
+        max_health: 10.,
     })
     .insert(CombatComponent {
         target: None,
         damage: 1.,
         time_between_attacks: Timer::from_seconds(1., true),
-        attack_range: 60.,
+        attack_range: 70.,
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
     })

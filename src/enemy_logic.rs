@@ -83,14 +83,14 @@ fn spawn_regular_enemy(
         ..Default::default()
     })
     .insert(Health {
-        current_health: 2.,
-        max_health: 2.,
+        current_health: 5.,
+        max_health: 5.,
     })
     .insert(CombatComponent {
         target: None,
-        damage: 10.,
-        time_between_attacks: Timer::from_seconds(0.5, true),
-        attack_range: 100.,
+        damage: 1.,
+        time_between_attacks: Timer::from_seconds(1., true),
+        attack_range: 80.,
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
     })
