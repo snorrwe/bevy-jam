@@ -14,7 +14,7 @@ name="native-launcher"
 path="launchers/native/src/main.rs"
 
 [features]
-default = ["debug_colliders"]
+default = []
 debug_colliders = ["debug_gui"]
 debug_gui = ["dep:bevy-inspector-egui"]
 

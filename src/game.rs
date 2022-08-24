@@ -35,8 +35,14 @@ pub struct GameAssets {
     pub circle_sprite: Handle<TextureAtlas>,
 }
 
+#[derive(Default)]
+pub struct ResourceAssets {
+    pub bloodrock_node: Handle<TextureAtlas>,
+    pub bloodrock: Handle<TextureAtlas>,
+}
+
 #[derive(Component)]
-pub struct LifeSoulResourceNode {
+pub struct BloodrockNode {
     pub amount_of_resource: usize,
 }
 
@@ -80,7 +86,7 @@ fn harvester_logic_system(
         &Velocity,
     )>,
     mut nodes: Query<
-        (&GlobalTransform, &mut LifeSoulResourceNode, Entity),
+        (&GlobalTransform, &mut BloodrockNode, Entity),
         (Without<Harvester>, Without<PlayerController>),
     >,
     player_pos_q: Query<
@@ -142,7 +148,7 @@ fn harvester_logic_system(
                 == harvester.max_carryable_resource
             {
                 if (player_pos - global_tr.translation().truncate()).length()
-                    < 60.
+                    < 100.
                 {
                     life_soul_amount.0 += harvester.current_carried_resource;
                     info!("Soul amount: {}", life_soul_amount.0);
@@ -268,7 +274,7 @@ fn spawn_workers_system(
         if workers.iter().len() < spawner.max_count as usize {
             spawner.time_between_spawns.tick(time.delta());
             if spawner.time_between_spawns.finished() {
-                spawn_regular_unit(
+                spawn_combat_unit(
                     &mut cmd,
                     &game_assets,
                     global_tr.translation() + Vec3::new(100., 100., 0.),
@@ -353,6 +359,7 @@ fn setup_game(
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     mut game_assets: ResMut<GameAssets>,
+    mut resource_assets: ResMut<ResourceAssets>,
 ) {
     game_assets.player_sprite = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/player/blob.png"),
@@ -392,6 +399,30 @@ fn setup_game(
         1,
     ));
 
+    resource_assets.bloodrock_node =
+        texture_atlases.add(TextureAtlas::from_grid(
+            asset_server.load("sprites/resources/bloodrocknode.png"),
+            Vec2::new(77., 59.),
+            1,
+            1,
+        ));
+
+    resource_assets.bloodrock = texture_atlases.add(TextureAtlas::from_grid(
+        asset_server.load("sprites/resources/bloodrock.png"),
+        Vec2::new(41., 41.),
+        1,
+        1,
+    ));
+
+    cmd.spawn_bundle(SpriteSheetBundle {
+        texture_atlas: resource_assets.bloodrock_node.clone(),
+        ..Default::default()
+    })
+    .insert(BloodrockNode {
+        amount_of_resource: 100,
+    })
+    .insert(Transform::from_translation(Vec3::new(100., 100., 0.)));
+
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.player_sprite.clone(),
         transform: Transform::from_scale(Vec3::new(1., 1., 1.)),
@@ -408,10 +439,83 @@ fn setup_game(
     })
     .insert(ZOffset { offset: -50. });
 
-    spawn_regular_unit(&mut cmd, &game_assets, Vec3::new(180., 10., 0.));
+    spawn_combat_unit(&mut cmd, &game_assets, Vec3::new(180., 10., 0.));
+    spawn_harvester_unit(&mut cmd, &game_assets, Vec3::new(0., 200., 0.));
 }
 
-fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
+fn spawn_harvester_unit(
+    cmd: &mut Commands,
+    game_assets: &GameAssets,
+    pos: Vec3,
+) {
+    let starter_colors = [Color::rgb(1., 1., 1.)];
+    let mut rng = rand::thread_rng();
+
+    cmd.spawn_bundle(SpriteSheetBundle {
+        texture_atlas: game_assets.worker_body.clone(),
+        ..Default::default()
+    })
+    .insert_bundle(collision::AABBBundle {
+        desc: collision::AABBDescriptor {
+            radius: Vec3::splat(50.),
+        },
+        filter: collision::CollisionFilter {
+            self_layers: collision::CollisionType::WORKER,
+            collisions_mask: collision::CollisionType::WORKER_COLLISIONS,
+        },
+        ..Default::default()
+    })
+    .insert(UnitFollowPlayer)
+    .insert(AvoidOthers { is_enabled: true })
+    .insert(Selectable)
+    .insert(MovementAnimationController {
+        is_moving: false,
+        last_frame_pos: pos,
+    })
+    .insert(Velocity(100.))
+    .insert(WorkerColor {
+        color: starter_colors[rng.gen_range(0..starter_colors.len())],
+    })
+    .insert(CanEatWorker {
+        entity_to_eat: None,
+    })
+    .insert(Health {
+        current_health: 10.,
+        max_health: 10.,
+    })
+    .insert(Harvester {
+        target_node: None,
+        harvest_speed: Timer::from_seconds(1., false),
+        max_carryable_resource: 3,
+        current_carried_resource: 0,
+    })
+    // multiple bundles have transforms, insert at the end for safety
+    .insert(Transform::from_translation(pos))
+    .with_children(|child| {
+        child
+            .spawn_bundle(SpriteSheetBundle {
+                texture_atlas: game_assets.worker_head.clone(),
+                transform: Transform::from_translation(Vec3::new(0., 35., 0.1)),
+                ..Default::default()
+            })
+            .insert(DontSortZ)
+            .insert(WorkerHead)
+            .with_children(|child2| {
+                child2
+                    .spawn_bundle(SpriteSheetBundle {
+                        texture_atlas: game_assets.worker_eye.clone(),
+                        transform: Transform::from_translation(Vec3::new(
+                            0., 0., 0.1,
+                        )),
+                        ..Default::default()
+                    })
+                    .insert(DontSortZ)
+                    .insert(WorkerEye);
+            });
+    });
+}
+
+fn spawn_combat_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
     let starter_colors = [
         Color::rgb(0., 1., 0.),
         Color::rgb(0., 0., 1.),
@@ -488,6 +592,7 @@ fn spawn_regular_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameAssets::default())
+            .insert_resource(ResourceAssets::default())
             .insert_resource(LifeSoulAmount::default())
             .add_startup_system(setup_game)
             .add_system_to_stage(CoreStage::PostUpdate, z_sorter_system)
