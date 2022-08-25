@@ -8,8 +8,8 @@ use crate::{
     health::{DestroyEntity, Health},
     interaction::MouseFollow,
     worker_logic::{
-        CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize, WorkerColor,
-        WorkerEye, WorkerHead,
+        change_class, CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize,
+        WorkerColor, WorkerEye, WorkerHead,
     },
     GameTime, PlayerCamera, Selectable,
 };
@@ -298,14 +298,16 @@ fn spawn_workers_system(
     time: Res<GameTime>,
     mut cmd: Commands,
     game_assets: Res<GameAssets>,
+    resource_assets: Res<ResourceAssets>,
 ) {
     for (mut spawner, global_tr) in worker_spawners.iter_mut() {
         if workers.iter().len() < spawner.max_count as usize {
             spawner.time_between_spawns.tick(time.delta());
             if spawner.time_between_spawns.finished() {
-                spawn_combat_unit(
+                spawn_unit_with_class(
                     &mut cmd,
                     &game_assets,
+                    &resource_assets,
                     global_tr.translation() + Vec3::new(100., 100., 0.),
                     UnitClass::Sworder,
                 );
@@ -396,23 +398,26 @@ fn player_controll_system(
             let mut rng = rand::thread_rng();
             let index = rng.gen_range(0..=2);
             if index == 0 {
-                spawn_harvester_unit(
+                spawn_unit_with_class(
                     &mut cmd,
                     &game_assets,
                     &resource_assets,
                     tr.translation + Vec3::new(100., 100., 0.),
+                    UnitClass::Worker,
                 )
             } else if index == 1 {
-                spawn_combat_unit(
+                spawn_unit_with_class(
                     &mut cmd,
                     &game_assets,
+                    &resource_assets,
                     tr.translation + Vec3::new(100., 100., 0.),
                     UnitClass::Sworder,
                 );
             } else if index == 2 {
-                spawn_combat_unit(
+                spawn_unit_with_class(
                     &mut cmd,
                     &game_assets,
+                    &resource_assets,
                     tr.translation + Vec3::new(100., 100., 0.),
                     UnitClass::Ranged,
                 );
@@ -503,109 +508,25 @@ fn setup_game(
     })
     .insert(PlayerController)
     .insert(EnemySpawner {
-        time_between_spawns: Timer::from_seconds(5., true),
+        time_between_spawns: Timer::from_seconds(10., true),
         distance_from_spawn_point: 400.,
     })
     .insert(ZOffset { offset: -50. });
 
-    spawn_combat_unit(
+    spawn_unit_with_class(
         &mut cmd,
         &game_assets,
+        &resource_assets,
         Vec3::new(180., 10., 0.),
         UnitClass::Sworder,
     );
-    spawn_harvester_unit(
+    spawn_unit_with_class(
         &mut cmd,
         &game_assets,
         &resource_assets,
         Vec3::new(0., 200., 0.),
+        UnitClass::Worker,
     );
-}
-
-fn spawn_harvester_unit(
-    cmd: &mut Commands,
-    game_assets: &GameAssets,
-    resource_assets: &ResourceAssets,
-    pos: Vec3,
-) {
-    let starter_colors = [Color::rgb(1., 1., 1.)];
-    let mut rng = rand::thread_rng();
-
-    let mut carry_sprite_transform =
-        Transform::from_translation(Vec3::new(0., 0., 0.12));
-    carry_sprite_transform.scale = Vec3::splat(0.);
-    cmd.spawn_bundle(SpriteSheetBundle {
-        texture_atlas: game_assets.worker_body.clone(),
-        ..Default::default()
-    })
-    .insert_bundle(collision::AABBBundle {
-        desc: collision::AABBDescriptor {
-            radius: Vec3::splat(50.),
-        },
-        filter: collision::CollisionFilter {
-            self_layers: collision::CollisionType::WORKER,
-            collisions_mask: collision::CollisionType::WORKER_COLLISIONS,
-        },
-        ..Default::default()
-    })
-    .insert(UnitFollowPlayer)
-    .insert(AvoidOthers { is_enabled: true })
-    .insert(Selectable)
-    .insert(MovementAnimationController {
-        is_moving: false,
-        last_frame_pos: pos,
-    })
-    .insert(Velocity(100.))
-    .insert(WorkerColor {
-        color: starter_colors[rng.gen_range(0..starter_colors.len())],
-    })
-    .insert(CanEatWorker {
-        entity_to_eat: None,
-    })
-    .insert(Health {
-        current_health: 10.,
-        max_health: 10.,
-    })
-    .insert(Harvester {
-        target_node: None,
-        harvest_speed: Timer::from_seconds(1., false),
-        max_carryable_resource: 3,
-        current_carried_resource: 0,
-    })
-    .insert(UnitClass::Worker)
-    .insert(UnitSize::Small)
-    // multiple bundles have transforms, insert at the end for safety
-    .insert(Transform::from_translation(pos))
-    .with_children(|child| {
-        child
-            .spawn_bundle(SpriteSheetBundle {
-                texture_atlas: resource_assets.bloodrock.clone(),
-                transform: carry_sprite_transform,
-                ..Default::default()
-            })
-            .insert(DontSortZ)
-            .insert(WorkerResourceCarrySprite);
-        child
-            .spawn_bundle(SpriteSheetBundle {
-                texture_atlas: game_assets.worker_head.clone(),
-                transform: Transform::from_translation(Vec3::new(0., 30., 0.1)),
-                ..Default::default()
-            })
-            .insert(DontSortZ)
-            .insert(WorkerHead)
-            .with_children(|child2| {
-                child2
-                    .spawn_bundle(SpriteSheetBundle {
-                        texture_atlas: game_assets.worker_eye.clone(),
-                        transform: Transform::from_translation(Vec3::new(
-                            0., 0., 0.1,
-                        )),
-                        ..Default::default()
-                    })
-                    .insert(DontSortZ)
-                    .insert(WorkerEye);
-            });
-    });
 }
 
 pub fn spawn_bloodrock_node(
@@ -623,9 +544,10 @@ pub fn spawn_bloodrock_node(
     .insert(Transform::from_translation(pos));
 }
 
-fn spawn_combat_unit(
+fn spawn_unit_with_class(
     cmd: &mut Commands,
     game_assets: &GameAssets,
+    resource_assets: &ResourceAssets,
     pos: Vec3,
     class: UnitClass,
 ) {
@@ -636,72 +558,82 @@ fn spawn_combat_unit(
     ];
     let mut rng = rand::thread_rng();
 
-    cmd.spawn_bundle(SpriteSheetBundle {
-        texture_atlas: game_assets.worker_body.clone(),
-        ..Default::default()
-    })
-    .insert_bundle(collision::AABBBundle {
-        desc: collision::AABBDescriptor {
-            radius: Vec3::splat(50.),
-        },
-        filter: collision::CollisionFilter {
-            self_layers: collision::CollisionType::WORKER,
-            collisions_mask: collision::CollisionType::WORKER_COLLISIONS,
-        },
-        ..Default::default()
-    })
-    .insert(UnitFollowPlayer)
-    .insert(AvoidOthers { is_enabled: true })
-    .insert(Selectable)
-    .insert(MovementAnimationController {
-        is_moving: false,
-        last_frame_pos: pos,
-    })
-    .insert(Velocity(100.))
-    .insert(WorkerColor {
-        color: starter_colors[rng.gen_range(0..starter_colors.len())],
-    })
-    .insert(CanEatWorker {
-        entity_to_eat: None,
-    })
-    .insert(Health {
+    let mut carry_sprite_transform =
+        Transform::from_translation(Vec3::new(0., 0., 0.12));
+    carry_sprite_transform.scale = Vec3::splat(0.);
+
+    let entity_id = cmd
+        .spawn_bundle(SpriteSheetBundle {
+            texture_atlas: game_assets.worker_body.clone(),
+            ..Default::default()
+        })
+        .insert_bundle(collision::AABBBundle {
+            desc: collision::AABBDescriptor {
+                radius: Vec3::splat(50.),
+            },
+            filter: collision::CollisionFilter {
+                self_layers: collision::CollisionType::WORKER,
+                collisions_mask: collision::CollisionType::WORKER_COLLISIONS,
+            },
+            ..Default::default()
+        })
+        .insert(UnitFollowPlayer)
+        .insert(AvoidOthers { is_enabled: true })
+        .insert(Selectable)
+        .insert(MovementAnimationController {
+            is_moving: false,
+            last_frame_pos: pos,
+        })
+        .insert(Velocity(100.))
+        .insert(WorkerColor {
+            color: starter_colors[rng.gen_range(0..starter_colors.len())],
+        })
+        .insert(CanEatWorker {
+            entity_to_eat: None,
+        })
+        .insert(class)
+        .insert(UnitSize::Small)
+        // multiple bundles have transforms, insert at the end for safety
+        .insert(Transform::from_translation(pos))
+        .with_children(|child| {
+            child
+                .spawn_bundle(SpriteSheetBundle {
+                    texture_atlas: resource_assets.bloodrock.clone(),
+                    transform: carry_sprite_transform,
+                    ..Default::default()
+                })
+                .insert(DontSortZ)
+                .insert(WorkerResourceCarrySprite);
+            child
+                .spawn_bundle(SpriteSheetBundle {
+                    texture_atlas: game_assets.worker_head.clone(),
+                    transform: Transform::from_translation(Vec3::new(
+                        0., 30., 0.1,
+                    )),
+                    ..Default::default()
+                })
+                .insert(DontSortZ)
+                .insert(WorkerHead)
+                .with_children(|child2| {
+                    child2
+                        .spawn_bundle(SpriteSheetBundle {
+                            texture_atlas: game_assets.worker_eye.clone(),
+                            transform: Transform::from_translation(Vec3::new(
+                                0., 0., 0.1,
+                            )),
+                            ..Default::default()
+                        })
+                        .insert(DontSortZ)
+                        .insert(WorkerEye);
+                });
+        })
+        .id();
+    let mut health_comp = Health {
         current_health: 10.,
         max_health: 10.,
-    })
-    .insert(CombatComponent {
-        target: None,
-        damage: 1.,
-        time_between_attacks: Timer::from_seconds(1., true),
-        attack_range: 70.,
-        attack_type: AttackType::Melee,
-        attack_state: AttackState::NotAttacking,
-    })
-    .insert(class)
-    .insert(UnitSize::Small)
-    // multiple bundles have transforms, insert at the end for safety
-    .insert(Transform::from_translation(pos))
-    .with_children(|child| {
-        child
-            .spawn_bundle(SpriteSheetBundle {
-                texture_atlas: game_assets.worker_head.clone(),
-                transform: Transform::from_translation(Vec3::new(0., 30., 0.1)),
-                ..Default::default()
-            })
-            .insert(DontSortZ)
-            .insert(WorkerHead)
-            .with_children(|child2| {
-                child2
-                    .spawn_bundle(SpriteSheetBundle {
-                        texture_atlas: game_assets.worker_eye.clone(),
-                        transform: Transform::from_translation(Vec3::new(
-                            0., 0., 0.1,
-                        )),
-                        ..Default::default()
-                    })
-                    .insert(DontSortZ)
-                    .insert(WorkerEye);
-            });
-    });
+    };
+    change_class(entity_id, cmd, class, &mut health_comp);
+    cmd.entity(entity_id).insert(health_comp);
 }
 
 impl Plugin for GamePlugin {
