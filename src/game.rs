@@ -8,8 +8,8 @@ use crate::{
     health::{DestroyEntity, Health},
     interaction::MouseFollow,
     worker_logic::{
-        merge_units, CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye,
-        WorkerHead,
+        CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize, WorkerColor,
+        WorkerEye, WorkerHead,
     },
     GameTime, PlayerCamera, Selectable,
 };
@@ -429,9 +429,9 @@ fn setup_game(
     ));
     game_assets.worker_body = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/workers/workerbody.png"),
-        Vec2::new(35., 42.),
-        1,
-        1,
+        Vec2::new(70., 70.),
+        6,
+        3,
     ));
     game_assets.worker_head = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/workers/workerhead.png"),
@@ -546,6 +546,8 @@ fn spawn_harvester_unit(
         max_carryable_resource: 3,
         current_carried_resource: 0,
     })
+    .insert(UnitClass::Worker)
+    .insert(UnitSize::Small)
     // multiple bundles have transforms, insert at the end for safety
     .insert(Transform::from_translation(pos))
     .with_children(|child| {
@@ -560,7 +562,7 @@ fn spawn_harvester_unit(
         child
             .spawn_bundle(SpriteSheetBundle {
                 texture_atlas: game_assets.worker_head.clone(),
-                transform: Transform::from_translation(Vec3::new(0., 35., 0.1)),
+                transform: Transform::from_translation(Vec3::new(0., 30., 0.1)),
                 ..Default::default()
             })
             .insert(DontSortZ)
@@ -643,13 +645,15 @@ fn spawn_combat_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
     })
+    .insert(UnitClass::Sworder)
+    .insert(UnitSize::Small)
     // multiple bundles have transforms, insert at the end for safety
     .insert(Transform::from_translation(pos))
     .with_children(|child| {
         child
             .spawn_bundle(SpriteSheetBundle {
                 texture_atlas: game_assets.worker_head.clone(),
-                transform: Transform::from_translation(Vec3::new(0., 35., 0.1)),
+                transform: Transform::from_translation(Vec3::new(0., 30., 0.1)),
                 ..Default::default()
             })
             .insert(DontSortZ)

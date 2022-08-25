@@ -106,6 +106,38 @@ pub fn merge_units(
     return return_var;
 }
 
+fn get_index_from_unit_class(class: UnitClass) -> usize {
+    match class {
+        UnitClass::Worker => 0,
+        UnitClass::Ranged => 1,
+        UnitClass::Sworder => 2,
+        UnitClass::Tank => 3,
+        UnitClass::Piker => 4,
+        UnitClass::Healer => 5,
+    }
+}
+
+fn change_sprite_based_on_class_system(
+    mut workers: Query<(&UnitClass, &UnitSize, &mut TextureAtlasSprite)>,
+) {
+    let mut sprite_index;
+    for (class, size, mut sprite) in workers.iter_mut() {
+        sprite_index = get_index_from_unit_class(*class);
+        match size {
+            UnitSize::Small => {
+                sprite_index += 0;
+            }
+            UnitSize::Medium => {
+                sprite_index += 6;
+            }
+            UnitSize::Huge => {
+                sprite_index += 12;
+            }
+        }
+        sprite.index = sprite_index;
+    }
+}
+
 fn ally_targetting_logic_system(
     mut allys: Query<(&mut CombatComponent, Entity), With<UnitFollowPlayer>>,
     enemies: Query<Entity, With<BasicEnemyLogic>>,
@@ -248,6 +280,7 @@ impl Plugin for WorkerLogicPlugin {
             .add_system(eat_other_worker_system)
             .add_system(change_head_system)
             .add_system(color_worker_body_system)
-            .add_system(ally_targetting_logic_system);
+            .add_system(ally_targetting_logic_system)
+            .add_system(change_sprite_based_on_class_system);
     }
 }
