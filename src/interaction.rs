@@ -143,14 +143,12 @@ fn deselect_on_mouse_up(
                         cmd.entity(e).despawn_recursive();
                     }
 
-                    let mut prey_color: Color = Color::BLACK;
                     let mut prey_size: f32 = 0.;
                     let mut prey_class = UnitClass::Worker;
                     let mut prey_unit_size = UnitSize::Small;
-                    if let Ok((prey_c, prey_tr, prey_cl, prey_unit)) =
+                    if let Ok((prey_tr, prey_cl, prey_unit)) =
                         worker_color.get_mut(e)
                     {
-                        prey_color = prey_c.color;
                         prey_size = prey_tr.scale.x;
                         prey_class = prey_cl.clone();
                         prey_unit_size = prey_unit.clone();

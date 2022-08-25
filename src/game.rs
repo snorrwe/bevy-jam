@@ -86,20 +86,25 @@ pub struct SpawnAllies {
 
 fn harvester_carrying_something_system(
     children: Query<&Children>,
-    harvesters: Query<(&Harvester, Entity)>,
+    units: Query<Entity, With<UnitFollowPlayer>>,
     mut carry_indicator_sprites: Query<
         &mut Transform,
         With<WorkerResourceCarrySprite>,
     >,
+    harvesters: Query<&Harvester>,
 ) {
-    for (harvester, e) in harvesters.iter() {
+    for e in units.iter() {
+        let mut sprite_size = 0.;
+
+        if let Ok(harvester) = harvesters.get(e) {
+            sprite_size = harvester.current_carried_resource as f32
+                / harvester.max_carryable_resource as f32;
+        }
+
         get_children_recursive(e, &children, &mut |child| {
             if let Ok(mut child_tr) = carry_indicator_sprites.get_mut(child) {
-                child_tr.scale = Vec3::splat(0.).lerp(
-                    Vec3::splat(1.5),
-                    harvester.current_carried_resource as f32
-                        / harvester.max_carryable_resource as f32,
-                );
+                child_tr.scale =
+                    Vec3::splat(0.).lerp(Vec3::splat(1.5), sprite_size);
             }
         });
     }

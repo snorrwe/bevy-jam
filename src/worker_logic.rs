@@ -411,7 +411,6 @@ impl Plugin for WorkerLogicPlugin {
         app.add_system(player_follower_system)
             .add_system(eat_other_worker_system)
             .add_system(change_head_system)
-            .add_system(color_worker_body_system)
             .add_system(ally_targetting_logic_system)
             .add_system(set_stats_based_on_class_and_size_system)
             .add_system(change_sprite_based_on_class_system);
