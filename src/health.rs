@@ -106,7 +106,6 @@ fn spawn_health_particles(
     texture: Handle<TextureAtlas>,
     pos: Vec3,
 ) {
-    //particlesys spawn on finish_point.translation
     let body = particles::ParticleBody::SpriteSheet {
         sheet_bundle: SpriteSheetBundle {
             texture_atlas: texture.clone(),
@@ -114,6 +113,7 @@ fn spawn_health_particles(
                 color: Color::RED,
                 ..Default::default()
             },
+            transform: Transform::from_scale(Vec3::splat(0.)),
             ..Default::default()
         },
         color_over_lifetime: Some(particles::SpriteColorOverLifetime {

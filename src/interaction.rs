@@ -2,12 +2,16 @@ use bevy::{math::Vec3A, prelude::*, render::camera::*};
 
 use crate::{
     collision::AABB,
+    easing::Easing,
+    game::GameAssets,
     health::Health,
+    particles,
     worker_logic::{
         change_class, merge_units, CanEatWorker, UnitClass, UnitSize,
     },
     ChangeTimeScaleEvent, PlayerCamera, Selectable, DEFAULT_TIME_SCALE,
 };
+use std::time::Duration;
 
 pub struct InteractionPlugin;
 
@@ -125,9 +129,10 @@ fn deselect_on_mouse_up(
     mut selected: ResMut<Selected>,
     mut hovered: ResMut<Hovered>,
     mut cmd: Commands,
-    mut eater: Query<(&CanEatWorker, &mut Health, Entity)>,
-    mut worker_color: Query<(&mut Transform, &mut UnitClass, &mut UnitSize)>,
+    mut eater: Query<(&CanEatWorker, &mut Health, &GlobalTransform, Entity)>,
+    mut worker_stats: Query<(&mut Transform, &mut UnitClass, &mut UnitSize)>,
     mut time_event: EventWriter<ChangeTimeScaleEvent>,
+    game_assets: Res<GameAssets>,
 ) {
     if btn.just_released(MouseButton::Left) {
         if let Some(e) = selected.0.take() {
@@ -136,18 +141,14 @@ fn deselect_on_mouse_up(
             });
             cmd.entity(e).remove::<MouseFollow>();
 
-            for (eats, mut health, eater_entity) in eater.iter_mut() {
+            for (eats, mut health, global_tr, eater_entity) in eater.iter_mut()
+            {
                 if let Some(entity_to_eat) = eats.entity_to_eat {
-                    if entity_to_eat == e {
-                        info!("{:?} ate {:?}", eater_entity, e);
-                        cmd.entity(e).despawn_recursive();
-                    }
-
                     let mut prey_size: f32 = 0.;
                     let mut prey_class = UnitClass::Worker;
                     let mut prey_unit_size = UnitSize::Small;
                     if let Ok((prey_tr, prey_cl, prey_unit)) =
-                        worker_color.get_mut(e)
+                        worker_stats.get_mut(e)
                     {
                         prey_size = prey_tr.scale.x;
                         prey_class = prey_cl.clone();
@@ -155,7 +156,7 @@ fn deselect_on_mouse_up(
                     }
                     if prey_size != 0. {
                         if let Ok((mut tr, mut eater_class, mut eater_size)) =
-                            worker_color.get_mut(eater_entity)
+                            worker_stats.get_mut(eater_entity)
                         {
                             tr.scale += prey_size / 10.;
                             let (new_class, new_size) = merge_units(
@@ -178,11 +179,72 @@ fn deselect_on_mouse_up(
 
                     selected.0 = None;
                     hovered.0 = None;
+                    spawn_eating_particles(
+                        &mut cmd,
+                        &game_assets,
+                        global_tr.translation() + Vec3::new(0., 40., 1.),
+                    );
+                    if entity_to_eat == e {
+                        info!("{:?} ate {:?}", eater_entity, e);
+                        cmd.entity(e).despawn_recursive();
+                    }
                     return;
                 }
             }
         }
     }
+}
+
+fn spawn_eating_particles(
+    cmd: &mut Commands,
+    game_assets: &GameAssets,
+    pos: Vec3,
+) {
+    let body = particles::ParticleBody::SpriteSheet {
+        sheet_bundle: SpriteSheetBundle {
+            texture_atlas: game_assets.circle_sprite.clone(),
+            sprite: TextureAtlasSprite {
+                color: Color::RED,
+                ..Default::default()
+            },
+            transform: Transform::from_scale(Vec3::splat(0.)),
+            ..Default::default()
+        },
+        color_over_lifetime: Some(particles::SpriteColorOverLifetime {
+            start_color: Color::RED,
+            end_color: Color::BLACK,
+            easing: Easing::Linear,
+        }),
+    };
+    cmd.spawn_bundle(particles::EmitterBundle {
+        lifetime: particles::Lifetime(Timer::new(
+            Duration::from_millis(400),
+            false,
+        )),
+        spawn_timer: particles::SpawnTimer(Timer::new(
+            Duration::from_millis(10),
+            false,
+        )),
+        config: particles::SpawnConfig {
+            min_count: 5,
+            max_count: 10,
+            min_life: Duration::from_millis(200),
+            max_life: Duration::from_millis(400),
+            min_vel: 1.0,
+            max_vel: 6.0,
+            min_acc: -0.1,
+            max_acc: -0.01,
+            easing: Easing::OutElastic,
+            size_over_lifetime: particles::SizeOverLifetime {
+                start_size: Vec3::splat(0.7),
+                end_size: Vec3::splat(0.3),
+                easing: Easing::QuartOut,
+            },
+            bodies: vec![body],
+        },
+        transform: Transform::from_translation(pos),
+        global_transform: Default::default(),
+    });
 }
 
 impl Plugin for InteractionPlugin {
