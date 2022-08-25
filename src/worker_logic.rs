@@ -145,6 +145,84 @@ fn change_sprite_based_on_class_system(
     }
 }
 
+fn set_stats_based_on_class_and_size_system(
+    units: Query<(Entity, &UnitClass, &UnitSize, &Transform)>,
+    mut combat_comps: Query<&mut CombatComponent>,
+    mut harvester_comps: Query<&mut Harvester>,
+    //mut healer_comps: Query<&mut HealerComponent>,
+    //mut tank_comps: Query<&TankComponent>,
+) {
+    for (e, class, size, tr) in units.iter() {
+        if let Ok(mut combat_comp) = combat_comps.get_mut(e) {
+            let mut damage = 1.;
+            let mut time_to_attack = 1.;
+            match class {
+                UnitClass::Piker => {
+                    damage = 1.;
+                    time_to_attack = 1.5;
+                }
+                UnitClass::Sworder => {
+                    damage = 1.5;
+                    time_to_attack = 0.75;
+                }
+                UnitClass::Ranged => {
+                    damage = 0.5;
+                    time_to_attack = 1.;
+                }
+                _ => {}
+            }
+            match size {
+                UnitSize::Small => {}
+                UnitSize::Medium => {
+                    damage *= 2.;
+                    time_to_attack /= 0.9;
+                }
+                UnitSize::Huge => {
+                    damage *= 3.;
+                    time_to_attack /= 0.8;
+                }
+            }
+            damage += 1. - tr.scale.x;
+            time_to_attack -= (1. - tr.scale.x) / 10.;
+            combat_comp.damage = damage;
+            if combat_comp.time_between_attacks.duration()
+                != bevy::utils::Duration::from_secs_f32(time_to_attack)
+            {
+                combat_comp.time_between_attacks.set_duration(
+                    bevy::utils::Duration::from_secs_f32(time_to_attack),
+                );
+            }
+        }
+        if let Ok(mut harvester_comp) = harvester_comps.get_mut(e) {
+            let mut harvest_speed = 1.;
+            let mut max_carryable_resource: usize = 3;
+            match size {
+                UnitSize::Small => {}
+                UnitSize::Medium => {
+                    harvest_speed = 0.9;
+                    max_carryable_resource = 4;
+                }
+                UnitSize::Huge => {
+                    harvest_speed = 0.8;
+                    max_carryable_resource = 5;
+                }
+            }
+            max_carryable_resource += ((1. - tr.scale.x) * 5.) as usize;
+            harvest_speed -= (1. - tr.scale.x) / 10.;
+
+            harvester_comp.max_carryable_resource = max_carryable_resource;
+
+            if harvester_comp.harvest_speed.duration()
+                != bevy::utils::Duration::from_secs_f32(harvest_speed)
+            {
+                harvester_comp.harvest_speed.set_duration(
+                    bevy::utils::Duration::from_secs_f32(harvest_speed),
+                );
+            }
+        }
+    }
+}
+
 pub fn change_class(
     entity: Entity,
     cmd: &mut Commands,
@@ -359,6 +437,7 @@ impl Plugin for WorkerLogicPlugin {
             .add_system(change_head_system)
             .add_system(color_worker_body_system)
             .add_system(ally_targetting_logic_system)
+            .add_system(set_stats_based_on_class_and_size_system)
             .add_system(change_sprite_based_on_class_system);
     }
 }
