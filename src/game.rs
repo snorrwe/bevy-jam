@@ -307,6 +307,7 @@ fn spawn_workers_system(
                     &mut cmd,
                     &game_assets,
                     global_tr.translation() + Vec3::new(100., 100., 0.),
+                    UnitClass::Sworder,
                 );
             }
         }
@@ -373,6 +374,7 @@ fn player_controll_system(
     time: Res<GameTime>,
     mut cmd: Commands,
     game_assets: Res<GameAssets>,
+    resource_assets: Res<ResourceAssets>,
     mut bloodrock: ResMut<BloodrockAmount>,
     max_supply: Res<MaxSupplyAmount>,
 ) {
@@ -391,11 +393,30 @@ fn player_controll_system(
             && bloodrock.0 >= 10
         {
             bloodrock.0 -= 10;
-            spawn_combat_unit(
-                &mut cmd,
-                &game_assets,
-                tr.translation + Vec3::new(100., 100., 0.),
-            );
+            let mut rng = rand::thread_rng();
+            let index = rng.gen_range(0..=2);
+            if index == 0 {
+                spawn_harvester_unit(
+                    &mut cmd,
+                    &game_assets,
+                    &resource_assets,
+                    tr.translation + Vec3::new(100., 100., 0.),
+                )
+            } else if index == 1 {
+                spawn_combat_unit(
+                    &mut cmd,
+                    &game_assets,
+                    tr.translation + Vec3::new(100., 100., 0.),
+                    UnitClass::Sworder,
+                );
+            } else if index == 2 {
+                spawn_combat_unit(
+                    &mut cmd,
+                    &game_assets,
+                    tr.translation + Vec3::new(100., 100., 0.),
+                    UnitClass::Ranged,
+                );
+            }
         }
     }
 }
@@ -487,7 +508,12 @@ fn setup_game(
     })
     .insert(ZOffset { offset: -50. });
 
-    spawn_combat_unit(&mut cmd, &game_assets, Vec3::new(180., 10., 0.));
+    spawn_combat_unit(
+        &mut cmd,
+        &game_assets,
+        Vec3::new(180., 10., 0.),
+        UnitClass::Sworder,
+    );
     spawn_harvester_unit(
         &mut cmd,
         &game_assets,
@@ -597,7 +623,12 @@ pub fn spawn_bloodrock_node(
     .insert(Transform::from_translation(pos));
 }
 
-fn spawn_combat_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
+fn spawn_combat_unit(
+    cmd: &mut Commands,
+    game_assets: &GameAssets,
+    pos: Vec3,
+    class: UnitClass,
+) {
     let starter_colors = [
         Color::rgb(0., 1., 0.),
         Color::rgb(0., 0., 1.),
@@ -645,7 +676,7 @@ fn spawn_combat_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
     })
-    .insert(UnitClass::Sworder)
+    .insert(class)
     .insert(UnitSize::Small)
     // multiple bundles have transforms, insert at the end for safety
     .insert(Transform::from_translation(pos))
