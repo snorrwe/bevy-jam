@@ -573,13 +573,6 @@ fn spawn_unit_with_class(
     pos: Vec3,
     class: UnitClass,
 ) {
-    let starter_colors = [
-        Color::rgb(0., 1., 0.),
-        Color::rgb(0., 0., 1.),
-        Color::rgb(1., 0., 0.),
-    ];
-    let mut rng = rand::thread_rng();
-
     let mut carry_sprite_transform =
         Transform::from_translation(Vec3::new(0., 0., 0.12));
     carry_sprite_transform.scale = Vec3::splat(0.);
