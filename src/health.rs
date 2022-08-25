@@ -2,6 +2,7 @@ use crate::{
     combat::CombatComponent,
     easing::Easing,
     game::{spawn_bloodrock_node, GameAssets, ResourceAssets},
+    interaction::{Hovered, Selected},
     particles,
 };
 use bevy::prelude::*;
@@ -32,6 +33,8 @@ fn destroyer_system(
     mut combat_comps: Query<&mut CombatComponent>,
     transforms: Query<&GlobalTransform>,
     spawn_on_death: Query<&SpawnResourceNodeOnDeath>,
+    mut selected: ResMut<Selected>,
+    mut hovered: ResMut<Hovered>,
 ) {
     for event in destroy_event_reader.iter() {
         //Clear out targets
@@ -52,6 +55,16 @@ fn destroyer_system(
                         e.translation(),
                     );
                 }
+            }
+        }
+        if let Some(e) = selected.0 {
+            if e == event.0 {
+                selected.0 = None;
+            }
+        }
+        if let Some(e) = hovered.0 {
+            if e == event.0 {
+                hovered.0 = None;
             }
         }
         cmd.entity(event.0).despawn_recursive();

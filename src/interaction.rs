@@ -2,8 +2,10 @@ use bevy::{math::Vec3A, prelude::*, render::camera::*};
 
 use crate::{
     collision::AABB,
+    health::Health,
     worker_logic::{
-        merge_units, CanEatWorker, UnitClass, UnitSize, WorkerColor,
+        change_class, merge_units, CanEatWorker, UnitClass, UnitSize,
+        WorkerColor,
     },
     ChangeTimeScaleEvent, PlayerCamera, Selectable, DEFAULT_TIME_SCALE,
 };
@@ -122,8 +124,9 @@ fn select_worker_system(
 fn deselect_on_mouse_up(
     btn: Res<Input<MouseButton>>,
     mut selected: ResMut<Selected>,
+    mut hovered: ResMut<Hovered>,
     mut cmd: Commands,
-    mut eater: Query<(&mut CanEatWorker, Entity)>,
+    mut eater: Query<(&CanEatWorker, &mut Health, Entity)>,
     mut worker_color: Query<(
         &mut WorkerColor,
         &mut Transform,
@@ -139,7 +142,7 @@ fn deselect_on_mouse_up(
             });
             cmd.entity(e).remove::<MouseFollow>();
 
-            for (eats, eater_entity) in eater.iter_mut() {
+            for (eats, mut health, eater_entity) in eater.iter_mut() {
                 if let Some(entity_to_eat) = eats.entity_to_eat {
                     if entity_to_eat == e {
                         info!("{:?} ate {:?}", eater_entity, e);
@@ -176,13 +179,22 @@ fn deselect_on_mouse_up(
                                 (*eater_class, *eater_size),
                                 (prey_class, prey_unit_size),
                             );
+                            if *eater_class != new_class {
+                                *eater_class = new_class;
+                                change_class(
+                                    eater_entity,
+                                    &mut cmd,
+                                    new_class,
+                                    &mut health,
+                                );
+                            }
 
-                            *eater_class = new_class;
                             *eater_size = new_size;
                         }
                     }
 
                     selected.0 = None;
+                    hovered.0 = None;
                     return;
                 }
             }

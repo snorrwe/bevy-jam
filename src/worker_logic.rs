@@ -1,10 +1,11 @@
 use bevy::prelude::*;
 
 use crate::{
-    combat::CombatComponent,
+    combat::{AttackState, AttackType, CombatComponent},
     enemy_logic::BasicEnemyLogic,
-    game::{GameAssets, PlayerController},
+    game::{GameAssets, Harvester, PlayerController},
     get_children_recursive,
+    health::Health,
     interaction::{MouseFollow, Selected},
     GameTime,
 };
@@ -17,6 +18,11 @@ pub struct WorkerHead;
 pub struct WorkerEye;
 #[derive(Component)]
 pub struct UnitFollowPlayer;
+
+#[derive(Component)]
+pub struct TankComponent;
+#[derive(Component)]
+pub struct HealerComponent;
 
 #[derive(Component)]
 pub struct WorkerColor {
@@ -136,6 +142,77 @@ fn change_sprite_based_on_class_system(
             }
         }
         sprite.index = sprite_index;
+    }
+}
+
+pub fn change_class(
+    entity: Entity,
+    cmd: &mut Commands,
+    class: UnitClass,
+    health: &mut Health,
+) {
+    let mut entity_commands = cmd.entity(entity);
+    entity_commands.remove::<CombatComponent>();
+    entity_commands.remove::<Harvester>();
+    entity_commands.remove::<TankComponent>();
+    entity_commands.remove::<HealerComponent>();
+
+    match class {
+        UnitClass::Worker => {
+            entity_commands.insert(Harvester {
+                target_node: None,
+                harvest_speed: Timer::from_seconds(1., false),
+                max_carryable_resource: 3,
+                current_carried_resource: 0,
+            });
+        }
+        UnitClass::Sworder => {
+            entity_commands.insert(CombatComponent {
+                target: None,
+                damage: 1.,
+                time_between_attacks: Timer::from_seconds(1., true),
+                attack_range: 70.,
+                attack_type: AttackType::Melee,
+                attack_state: AttackState::NotAttacking,
+            });
+        }
+        UnitClass::Piker => {
+            entity_commands.insert(CombatComponent {
+                target: None,
+                damage: 1.5,
+                time_between_attacks: Timer::from_seconds(1.5, true),
+                attack_range: 100.,
+                attack_type: AttackType::Melee,
+                attack_state: AttackState::NotAttacking,
+            });
+        }
+        UnitClass::Ranged => {
+            entity_commands.insert(CombatComponent {
+                target: None,
+                damage: 0.5,
+                time_between_attacks: Timer::from_seconds(1., true),
+                attack_range: 300.,
+                attack_type: AttackType::Ranged,
+                attack_state: AttackState::NotAttacking,
+            });
+        }
+        UnitClass::Tank => {
+            entity_commands
+                .insert(CombatComponent {
+                    target: None,
+                    damage: 0.5,
+                    time_between_attacks: Timer::from_seconds(12., true),
+                    attack_range: 70.,
+                    attack_type: AttackType::Ranged,
+                    attack_state: AttackState::NotAttacking,
+                })
+                .insert(TankComponent);
+            health.max_health *= 2.;
+            health.current_health *= 2.;
+        }
+        UnitClass::Healer => {
+            entity_commands.insert(HealerComponent);
+        }
     }
 }
 
