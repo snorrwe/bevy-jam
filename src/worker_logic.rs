@@ -175,11 +175,11 @@ fn set_stats_based_on_class_and_size_system(
                 UnitSize::Small => {}
                 UnitSize::Medium => {
                     damage *= 2.;
-                    time_to_attack /= 0.9;
+                    time_to_attack /= 1.5;
                 }
                 UnitSize::Huge => {
                     damage *= 3.;
-                    time_to_attack /= 0.8;
+                    time_to_attack /= 3.;
                 }
             }
             damage += 1. - tr.scale.x;
@@ -199,11 +199,11 @@ fn set_stats_based_on_class_and_size_system(
             match size {
                 UnitSize::Small => {}
                 UnitSize::Medium => {
-                    harvest_speed = 0.9;
+                    harvest_speed = 0.80;
                     max_carryable_resource = 4;
                 }
                 UnitSize::Huge => {
-                    harvest_speed = 0.8;
+                    harvest_speed = 0.5;
                     max_carryable_resource = 5;
                 }
             }
@@ -279,9 +279,9 @@ pub fn change_class(
                 .insert(CombatComponent {
                     target: None,
                     damage: 0.5,
-                    time_between_attacks: Timer::from_seconds(12., true),
+                    time_between_attacks: Timer::from_seconds(3., true),
                     attack_range: 70.,
-                    attack_type: AttackType::Ranged,
+                    attack_type: AttackType::Melee,
                     attack_state: AttackState::NotAttacking,
                 })
                 .insert(TankComponent);
@@ -309,7 +309,7 @@ fn ally_targetting_logic_system(
             for enemy in enemies.iter() {
                 if let Ok(enemy_tr) = transforms.get(enemy) {
                     if (ally_pos - enemy_tr.translation().truncate()).length()
-                        < 200.
+                        < ally_combat.attack_range.max(200.) + 100.
                     {
                         ally_combat.target = Some(enemy);
                         break;

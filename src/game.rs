@@ -1,7 +1,6 @@
 use crate::{
     animation::{Animation, RotationAnimation},
     collision,
-    combat::{AttackState, AttackType, CombatComponent},
     easing::Easing,
     enemy_logic::EnemySpawner,
     get_children_recursive,
@@ -111,6 +110,7 @@ fn harvester_logic_system(
     mut harvesters: Query<(
         &mut Harvester,
         &mut Transform,
+        &mut AvoidOthers,
         &GlobalTransform,
         &Velocity,
     )>,
@@ -127,8 +127,11 @@ fn harvester_logic_system(
 ) {
     let player_pos = player_pos_q.single().translation().truncate();
 
-    for (mut harvester, mut tr, global_tr, velocity) in harvesters.iter_mut() {
+    for (mut harvester, mut tr, mut avoid_others, global_tr, velocity) in
+        harvesters.iter_mut()
+    {
         if let Some(target) = harvester.target_node {
+            avoid_others.is_enabled = false;
             if let Ok((node_tr, mut resource_node, _)) = nodes.get_mut(target) {
                 if (node_tr.translation().truncate()
                     - global_tr.translation().truncate())
@@ -173,23 +176,30 @@ fn harvester_logic_system(
                 }
             }
         } else {
-            if harvester.current_carried_resource
-                == harvester.max_carryable_resource
+            avoid_others.is_enabled = harvester.current_carried_resource
+                != harvester.max_carryable_resource;
+
+            if (player_pos - global_tr.translation().truncate()).length() < 100.
             {
-                if (player_pos - global_tr.translation().truncate()).length()
-                    < 100.
+                if harvester.current_carried_resource
+                    == harvester.max_carryable_resource
                 {
                     life_soul_amount.0 += harvester.current_carried_resource;
                     info!("Soul amount: {}", life_soul_amount.0);
                     harvester.current_carried_resource = 0;
-                } else {
-                    let dir = (player_pos - global_tr.translation().truncate())
-                        .extend(0.)
-                        .normalize();
-
-                    tr.translation += dir * time.delta_seconds() * velocity.0;
                 }
             } else {
+                let dir = (player_pos - global_tr.translation().truncate())
+                    .extend(0.)
+                    .normalize();
+
+                tr.translation += dir * time.delta_seconds() * velocity.0;
+            }
+
+            //IF HAND IS NOT FULL - CHECK IF THERE'S A NODE NEARBY
+            if harvester.current_carried_resource
+                != harvester.max_carryable_resource
+            {
                 let mut closest_node: (Option<Entity>, f32) = (None, 9999999.);
                 for (node_tr, _, e) in nodes.iter() {
                     let distance = (global_tr.translation().truncate()
@@ -200,7 +210,6 @@ fn harvester_logic_system(
                         closest_node.0 = Some(e);
                     }
                 }
-
                 harvester.target_node = closest_node.0;
             }
         }

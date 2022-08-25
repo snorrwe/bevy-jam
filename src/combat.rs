@@ -1,7 +1,7 @@
 use crate::{
     animation::{Animation, RotationAnimation},
     easing::Easing,
-    game::{AvoidOthers, Velocity},
+    game::{AvoidOthers, GameAssets, Velocity},
     health::HealthChangedEvent,
     GameTime,
 };
@@ -11,6 +11,13 @@ pub enum AttackType {
     Melee,
     Ranged,
     None,
+}
+
+#[derive(Component)]
+pub struct Projectile {
+    target: Entity,
+    damage: f32,
+    speed: f32,
 }
 
 //Helps sync up animation with damage dealing
@@ -31,6 +38,36 @@ pub struct CombatComponent {
     pub attack_state: AttackState,
 }
 
+fn projectile_flying_system(
+    mut cmd: Commands,
+    mut projectiles: Query<(&mut Transform, &Projectile, Entity)>,
+    global_trs: Query<&GlobalTransform>,
+    mut health_changed_event_writer: EventWriter<HealthChangedEvent>,
+    time: Res<GameTime>,
+) {
+    for (mut proj_tr, proj, e) in projectiles.iter_mut() {
+        if let Ok(target_tr) = global_trs.get(proj.target) {
+            let dir_vector = target_tr.translation().truncate()
+                - proj_tr.translation.truncate();
+            let distance = dir_vector.length();
+            let direction = dir_vector.normalize();
+
+            if distance < 10. {
+                health_changed_event_writer.send(HealthChangedEvent {
+                    target: proj.target,
+                    amount: -proj.damage,
+                });
+                cmd.entity(e).despawn_recursive();
+            } else {
+                proj_tr.translation +=
+                    direction.extend(0.) * proj.speed * time.delta_seconds();
+            }
+        } else {
+            cmd.entity(e).despawn_recursive();
+        }
+    }
+}
+
 fn combat_system(
     time: Res<GameTime>,
     mut combatant: Query<(
@@ -42,6 +79,7 @@ fn combat_system(
     mut avoid_others: Query<&mut AvoidOthers>,
     transform_query: Query<&GlobalTransform>,
     mut health_changed_event_writer: EventWriter<HealthChangedEvent>,
+    game_assets: Res<GameAssets>,
     mut cmd: Commands,
 ) {
     for (mut combat_comp, mut tr, vel, e) in combatant.iter_mut() {
@@ -87,7 +125,7 @@ fn combat_system(
         }
     }
 
-    for (mut combat_comp, _, _, e) in combatant.iter_mut() {
+    for (mut combat_comp, tr, _, e) in combatant.iter_mut() {
         if let Some(target) = combat_comp.target {
             match &mut combat_comp.attack_state {
                 AttackState::AttackStart { ref mut timer } => {
@@ -106,10 +144,34 @@ fn combat_system(
                             timer: Timer::from_seconds(0.3, false),
                         };
 
-                        health_changed_event_writer.send(HealthChangedEvent {
-                            amount: -combat_comp.damage,
-                            target: target,
-                        });
+                        match combat_comp.attack_type {
+                            AttackType::Ranged => {
+                                let mut proj_transform =
+                                    Transform::from_translation(tr.translation);
+                                proj_transform.scale = Vec3::splat(0.3);
+                                cmd.spawn_bundle(SpriteSheetBundle {
+                                    texture_atlas: game_assets
+                                        .circle_sprite
+                                        .clone(),
+                                    ..Default::default()
+                                })
+                                .insert(Projectile {
+                                    speed: 500.,
+                                    damage: combat_comp.damage,
+                                    target: target,
+                                })
+                                .insert(proj_transform);
+                            }
+                            AttackType::Melee => {
+                                health_changed_event_writer.send(
+                                    HealthChangedEvent {
+                                        amount: -combat_comp.damage,
+                                        target: target,
+                                    },
+                                );
+                            }
+                            AttackType::None => {}
+                        }
                     }
                 }
                 AttackState::AttackMiddle { ref mut timer } => {
@@ -145,6 +207,7 @@ pub struct CombatPlugin;
 
 impl Plugin for CombatPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(combat_system);
+        app.add_system(combat_system)
+            .add_system(projectile_flying_system);
     }
 }
