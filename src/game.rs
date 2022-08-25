@@ -4,7 +4,7 @@ use crate::{
     easing::Easing,
     enemy_logic::EnemySpawner,
     get_children_recursive,
-    health::{DestroyEntity, Health},
+    health::{hp_material, DestroyEntity, Health},
     interaction::MouseFollow,
     worker_logic::{
         change_class, CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize,
@@ -12,7 +12,7 @@ use crate::{
     },
     GameTime, PlayerCamera, Selectable,
 };
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 
 pub struct GamePlugin;
@@ -34,6 +34,7 @@ pub struct GameAssets {
     pub worker_eye: Handle<TextureAtlas>,
     pub worker_body: Handle<TextureAtlas>,
     pub circle_sprite: Handle<TextureAtlas>,
+    pub hp_mesh: Handle<Mesh>,
 }
 
 #[derive(Default)]
@@ -313,6 +314,7 @@ fn spawn_workers_system(
     mut cmd: Commands,
     game_assets: Res<GameAssets>,
     resource_assets: Res<ResourceAssets>,
+    mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
 ) {
     for (mut spawner, global_tr) in worker_spawners.iter_mut() {
         if workers.iter().len() < spawner.max_count as usize {
@@ -324,6 +326,7 @@ fn spawn_workers_system(
                     &resource_assets,
                     global_tr.translation() + Vec3::new(100., 100., 0.),
                     UnitClass::Sworder,
+                    &mut *hp_assets,
                 );
             }
         }
@@ -393,6 +396,7 @@ fn player_controll_system(
     resource_assets: Res<ResourceAssets>,
     mut bloodrock: ResMut<BloodrockAmount>,
     max_supply: Res<MaxSupplyAmount>,
+    mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
 ) {
     let delta_time = time.delta_seconds();
     let mut delta_movement = Vec2::new(0., 0.);
@@ -426,6 +430,7 @@ fn player_controll_system(
                     &resource_assets,
                     spawn_point,
                     UnitClass::Worker,
+                    &mut *hp_assets,
                 )
             } else if index == 1 {
                 spawn_unit_with_class(
@@ -434,6 +439,7 @@ fn player_controll_system(
                     &resource_assets,
                     spawn_point,
                     UnitClass::Sworder,
+                    &mut *hp_assets,
                 );
             } else if index == 2 {
                 spawn_unit_with_class(
@@ -442,6 +448,7 @@ fn player_controll_system(
                     &resource_assets,
                     spawn_point,
                     UnitClass::Ranged,
+                    &mut *hp_assets,
                 );
             }
         }
@@ -468,7 +475,13 @@ fn setup_game(
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
     mut game_assets: ResMut<GameAssets>,
     mut resource_assets: ResMut<ResourceAssets>,
+    mut mesh_assets: ResMut<Assets<Mesh>>,
+    mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
 ) {
+    game_assets.hp_mesh = mesh_assets.add(Mesh::from(shape::Quad {
+        size: Vec2::new(100.0, 10.0),
+        flip: false,
+    }));
     game_assets.player_sprite = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/player/blob.png"),
         Vec2::new(146., 124.),
@@ -541,6 +554,7 @@ fn setup_game(
         &resource_assets,
         Vec3::new(180., 10., 0.),
         UnitClass::Sworder,
+        &mut *hp_assets,
     );
     spawn_unit_with_class(
         &mut cmd,
@@ -548,6 +562,7 @@ fn setup_game(
         &resource_assets,
         Vec3::new(0., 200., 0.),
         UnitClass::Worker,
+        &mut *hp_assets,
     );
 }
 
@@ -572,6 +587,7 @@ fn spawn_unit_with_class(
     resource_assets: &ResourceAssets,
     pos: Vec3,
     class: UnitClass,
+    hp_assets: &mut Assets<hp_material::HpMaterial>,
 ) {
     let mut carry_sprite_transform =
         Transform::from_translation(Vec3::new(0., 0., 0.12));
@@ -635,6 +651,19 @@ fn spawn_unit_with_class(
                         .insert(DontSortZ)
                         .insert(WorkerEye);
                 });
+            child.spawn_bundle(MaterialMesh2dBundle {
+                mesh: bevy::sprite::Mesh2dHandle(game_assets.hp_mesh.clone()),
+                material: hp_assets.add(hp_material::HpMaterial {
+                    color_empty: Color::RED,
+                    color_full: Color::GREEN,
+                    hp: 0.0,
+                    hp_max: 0.0,
+                }),
+                transform: Transform::from_translation(
+                    Vec3::Z * 200.0 + Vec3::Y * 50.0,
+                ),
+                ..Default::default()
+            });
         })
         .id();
     let mut health_comp = Health {

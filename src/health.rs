@@ -167,6 +167,7 @@ impl Plugin for HealthPlugin {
         .add_event::<DestroyEntity>()
         .add_system(health_change_system)
         .add_system(hp_material::update_hp_materials)
+        .add_system(hp_material::update_hp_bar_transform)
         .add_asset::<hp_material::HpMaterial>()
         .add_system_to_stage(CoreStage::PostUpdate, destroyer_system);
     }
