@@ -23,9 +23,87 @@ pub struct WorkerColor {
     pub color: Color,
 }
 
+#[derive(Component, Clone, Copy, PartialEq)]
+pub enum UnitClass {
+    Worker,
+    Ranged,
+    Sworder,
+    Tank,
+    Piker,
+    Healer,
+}
+#[derive(Component, Clone, Copy, PartialEq)]
+pub enum UnitSize {
+    Small,
+    Medium,
+    Huge,
+}
+
 #[derive(Component)]
 pub struct CanEatWorker {
     pub entity_to_eat: Option<Entity>,
+}
+
+fn get_next_size(size: UnitSize) -> UnitSize {
+    match size {
+        UnitSize::Small => {
+            return UnitSize::Medium;
+        }
+        UnitSize::Medium => {
+            return UnitSize::Huge;
+        }
+        UnitSize::Huge => {
+            return UnitSize::Huge;
+        }
+    }
+}
+
+pub fn merge_units(
+    unit_alpha: (UnitClass, UnitSize),
+    unit_beta: (UnitClass, UnitSize),
+) -> (UnitClass, UnitSize) {
+    let unit_alpha_size = unit_alpha.1;
+    let unit_beta_size = unit_beta.1;
+    let unit_alpha_class = unit_alpha.0;
+    let unit_beta_class = unit_beta.0;
+    let mut return_var = unit_alpha.clone();
+
+    if matches!(unit_alpha_size, unit_beta_size) {
+        return_var.1 = get_next_size(return_var.1);
+    }
+
+    match unit_alpha_class {
+        UnitClass::Worker => match unit_beta_class {
+            UnitClass::Ranged => {
+                return_var.0 = UnitClass::Healer;
+            }
+            UnitClass::Sworder => {
+                return_var.0 = UnitClass::Tank;
+            }
+            _ => {}
+        },
+        UnitClass::Sworder => match unit_beta_class {
+            UnitClass::Worker => {
+                return_var.0 = UnitClass::Tank;
+            }
+            UnitClass::Ranged => {
+                return_var.0 = UnitClass::Piker;
+            }
+            _ => {}
+        },
+        UnitClass::Ranged => match unit_beta_class {
+            UnitClass::Sworder => {
+                return_var.0 = UnitClass::Piker;
+            }
+            UnitClass::Worker => {
+                return_var.0 = UnitClass::Healer;
+            }
+            _ => {}
+        },
+
+        _ => {}
+    }
+    return return_var;
 }
 
 fn ally_targetting_logic_system(

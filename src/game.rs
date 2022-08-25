@@ -8,7 +8,8 @@ use crate::{
     health::{DestroyEntity, Health},
     interaction::MouseFollow,
     worker_logic::{
-        CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye, WorkerHead,
+        merge_units, CanEatWorker, UnitFollowPlayer, WorkerColor, WorkerEye,
+        WorkerHead,
     },
     GameTime, PlayerCamera, Selectable,
 };
