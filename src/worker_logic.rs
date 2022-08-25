@@ -68,7 +68,8 @@ pub fn merge_units(
     let unit_beta_class = unit_beta.0;
     let mut return_var = unit_alpha.clone();
 
-    if matches!(unit_alpha_size, unit_beta_size) {
+    if unit_alpha_class == unit_beta_class && unit_alpha_size == unit_beta_size
+    {
         return_var.1 = get_next_size(return_var.1);
     }
 

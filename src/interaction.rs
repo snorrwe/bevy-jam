@@ -2,7 +2,9 @@ use bevy::{math::Vec3A, prelude::*, render::camera::*};
 
 use crate::{
     collision::AABB,
-    worker_logic::{CanEatWorker, WorkerColor},
+    worker_logic::{
+        merge_units, CanEatWorker, UnitClass, UnitSize, WorkerColor,
+    },
     ChangeTimeScaleEvent, PlayerCamera, Selectable, DEFAULT_TIME_SCALE,
 };
 
@@ -122,7 +124,12 @@ fn deselect_on_mouse_up(
     mut selected: ResMut<Selected>,
     mut cmd: Commands,
     mut eater: Query<(&mut CanEatWorker, Entity)>,
-    mut worker_color: Query<(&mut WorkerColor, &mut Transform)>,
+    mut worker_color: Query<(
+        &mut WorkerColor,
+        &mut Transform,
+        &mut UnitClass,
+        &mut UnitSize,
+    )>,
     mut time_event: EventWriter<ChangeTimeScaleEvent>,
 ) {
     if btn.just_released(MouseButton::Left) {
@@ -141,13 +148,23 @@ fn deselect_on_mouse_up(
 
                     let mut prey_color: Color = Color::BLACK;
                     let mut prey_size: f32 = 0.;
-                    if let Ok((prey_c, prey_tr)) = worker_color.get_mut(e) {
+                    let mut prey_class = UnitClass::Worker;
+                    let mut prey_unit_size = UnitSize::Small;
+                    if let Ok((prey_c, prey_tr, prey_cl, prey_unit)) =
+                        worker_color.get_mut(e)
+                    {
                         prey_color = prey_c.color;
                         prey_size = prey_tr.scale.x;
+                        prey_class = prey_cl.clone();
+                        prey_unit_size = prey_unit.clone();
                     }
                     if prey_size != 0. {
-                        if let Ok((mut eater_color, mut tr)) =
-                            worker_color.get_mut(eater_entity)
+                        if let Ok((
+                            mut eater_color,
+                            mut tr,
+                            mut eater_class,
+                            mut eater_size,
+                        )) = worker_color.get_mut(eater_entity)
                         {
                             eater_color.color = Color::rgb(
                                 (eater_color.color.r() + prey_color.r()) / 2.,
@@ -155,6 +172,13 @@ fn deselect_on_mouse_up(
                                 (eater_color.color.b() + prey_color.b()) / 2.,
                             );
                             tr.scale += prey_size / 10.;
+                            let (new_class, new_size) = merge_units(
+                                (*eater_class, *eater_size),
+                                (prey_class, prey_unit_size),
+                            );
+
+                            *eater_class = new_class;
+                            *eater_size = new_size;
                         }
                     }
 
