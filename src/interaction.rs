@@ -5,7 +5,6 @@ use crate::{
     health::Health,
     worker_logic::{
         change_class, merge_units, CanEatWorker, UnitClass, UnitSize,
-        WorkerColor,
     },
     ChangeTimeScaleEvent, PlayerCamera, Selectable, DEFAULT_TIME_SCALE,
 };
@@ -127,12 +126,7 @@ fn deselect_on_mouse_up(
     mut hovered: ResMut<Hovered>,
     mut cmd: Commands,
     mut eater: Query<(&CanEatWorker, &mut Health, Entity)>,
-    mut worker_color: Query<(
-        &mut WorkerColor,
-        &mut Transform,
-        &mut UnitClass,
-        &mut UnitSize,
-    )>,
+    mut worker_color: Query<(&mut Transform, &mut UnitClass, &mut UnitSize)>,
     mut time_event: EventWriter<ChangeTimeScaleEvent>,
 ) {
     if btn.just_released(MouseButton::Left) {
@@ -162,18 +156,9 @@ fn deselect_on_mouse_up(
                         prey_unit_size = prey_unit.clone();
                     }
                     if prey_size != 0. {
-                        if let Ok((
-                            mut eater_color,
-                            mut tr,
-                            mut eater_class,
-                            mut eater_size,
-                        )) = worker_color.get_mut(eater_entity)
+                        if let Ok((mut tr, mut eater_class, mut eater_size)) =
+                            worker_color.get_mut(eater_entity)
                         {
-                            eater_color.color = Color::rgb(
-                                (eater_color.color.r() + prey_color.r()) / 2.,
-                                (eater_color.color.g() + prey_color.g()) / 2.,
-                                (eater_color.color.b() + prey_color.b()) / 2.,
-                            );
                             tr.scale += prey_size / 10.;
                             let (new_class, new_size) = merge_units(
                                 (*eater_class, *eater_size),

@@ -8,7 +8,7 @@ use crate::{
     interaction::MouseFollow,
     worker_logic::{
         change_class, CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize,
-        WorkerColor, WorkerEye, WorkerHead,
+        WorkerEye, WorkerHead,
     },
     GameTime, PlayerCamera, Selectable,
 };
@@ -406,12 +406,20 @@ fn player_controll_system(
             bloodrock.0 -= 10;
             let mut rng = rand::thread_rng();
             let index = rng.gen_range(0..=2);
+            let spawn_point = tr.translation
+                + Vec3::new(
+                    rng.gen_range(-1.0..=1.0),
+                    rng.gen_range(-1.0..=1.0),
+                    0.,
+                )
+                .normalize()
+                    * 100.;
             if index == 0 {
                 spawn_unit_with_class(
                     &mut cmd,
                     &game_assets,
                     &resource_assets,
-                    tr.translation + Vec3::new(100., 100., 0.),
+                    spawn_point,
                     UnitClass::Worker,
                 )
             } else if index == 1 {
@@ -419,7 +427,7 @@ fn player_controll_system(
                     &mut cmd,
                     &game_assets,
                     &resource_assets,
-                    tr.translation + Vec3::new(100., 100., 0.),
+                    spawn_point,
                     UnitClass::Sworder,
                 );
             } else if index == 2 {
@@ -427,7 +435,7 @@ fn player_controll_system(
                     &mut cmd,
                     &game_assets,
                     &resource_assets,
-                    tr.translation + Vec3::new(100., 100., 0.),
+                    spawn_point,
                     UnitClass::Ranged,
                 );
             }
@@ -594,9 +602,6 @@ fn spawn_unit_with_class(
             last_frame_pos: pos,
         })
         .insert(Velocity(100.))
-        .insert(WorkerColor {
-            color: starter_colors[rng.gen_range(0..starter_colors.len())],
-        })
         .insert(CanEatWorker {
             entity_to_eat: None,
         })
@@ -627,9 +632,6 @@ fn spawn_unit_with_class(
                     child2
                         .spawn_bundle(SpriteSheetBundle {
                             texture_atlas: game_assets.worker_eye.clone(),
-                            transform: Transform::from_translation(Vec3::new(
-                                0., 0., 0.1,
-                            )),
                             ..Default::default()
                         })
                         .insert(DontSortZ)

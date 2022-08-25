@@ -24,11 +24,6 @@ pub struct TankComponent;
 #[derive(Component)]
 pub struct HealerComponent;
 
-#[derive(Component)]
-pub struct WorkerColor {
-    pub color: Color,
-}
-
 #[derive(Component, Clone, Copy, PartialEq)]
 pub enum UnitClass {
     Worker,
@@ -317,25 +312,6 @@ fn ally_targetting_logic_system(
                 }
             }
         }
-    }
-}
-
-fn color_worker_body_system(
-    children: Query<&Children>,
-    mut worker_color: Query<
-        (&WorkerColor, &mut TextureAtlasSprite, Entity),
-        Without<WorkerHead>,
-    >,
-    mut worker_head: Query<&mut TextureAtlasSprite, With<WorkerHead>>,
-) {
-    for (color, mut sprite, e) in worker_color.iter_mut() {
-        sprite.color = color.color;
-
-        get_children_recursive(e, &children, &mut |child| {
-            if let Ok(mut head_sprite) = worker_head.get_mut(child) {
-                head_sprite.color = color.color;
-            }
-        });
     }
 }
 
