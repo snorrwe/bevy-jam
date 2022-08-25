@@ -4,7 +4,7 @@ use crate::{
     collision,
     combat::{AttackState, AttackType, CombatComponent},
     game::Velocity,
-    health::Health,
+    health::{Health, SpawnResourceNodeOnDeath},
     worker_logic::UnitFollowPlayer,
     GameTime,
 };
@@ -96,7 +96,8 @@ fn spawn_regular_enemy(
     })
     .insert(Transform::from_translation(pos))
     .insert(Velocity(150.))
-    .insert(BasicEnemyLogic);
+    .insert(BasicEnemyLogic)
+    .insert(SpawnResourceNodeOnDeath { chance: 10. });
 }
 
 fn setup_system(

@@ -472,15 +472,7 @@ fn setup_game(
         1,
         1,
     ));
-
-    cmd.spawn_bundle(SpriteSheetBundle {
-        texture_atlas: resource_assets.bloodrock_node.clone(),
-        ..Default::default()
-    })
-    .insert(BloodrockNode {
-        amount_of_resource: 100,
-    })
-    .insert(Transform::from_translation(Vec3::new(100., 100., 0.)));
+    spawn_bloodrock_node(&mut cmd, &resource_assets, Vec3::new(100., 100., 0.));
 
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.player_sprite.clone(),
@@ -585,6 +577,21 @@ fn spawn_harvester_unit(
                     .insert(WorkerEye);
             });
     });
+}
+
+pub fn spawn_bloodrock_node(
+    cmd: &mut Commands,
+    resource_assets: &ResourceAssets,
+    pos: Vec3,
+) {
+    cmd.spawn_bundle(SpriteSheetBundle {
+        texture_atlas: resource_assets.bloodrock_node.clone(),
+        ..Default::default()
+    })
+    .insert(BloodrockNode {
+        amount_of_resource: 100,
+    })
+    .insert(Transform::from_translation(pos));
 }
 
 fn spawn_combat_unit(cmd: &mut Commands, game_assets: &GameAssets, pos: Vec3) {

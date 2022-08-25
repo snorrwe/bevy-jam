@@ -1,7 +1,11 @@
 use crate::{
-    combat::CombatComponent, easing::Easing, game::GameAssets, particles,
+    combat::CombatComponent,
+    easing::Easing,
+    game::{spawn_bloodrock_node, GameAssets, ResourceAssets},
+    particles,
 };
 use bevy::prelude::*;
+use rand::Rng;
 use std::time::Duration;
 
 #[derive(Component)]
@@ -14,13 +18,20 @@ pub struct HealthChangedEvent {
     pub target: Entity,
     pub amount: f32,
 }
+#[derive(Component)]
+pub struct SpawnResourceNodeOnDeath {
+    pub chance: f32,
+}
 
 pub struct DestroyEntity(pub Entity);
 
 fn destroyer_system(
     mut cmd: Commands,
+    resource_assets: Res<ResourceAssets>,
     mut destroy_event_reader: EventReader<DestroyEntity>,
     mut combat_comps: Query<&mut CombatComponent>,
+    transforms: Query<&GlobalTransform>,
+    spawn_on_death: Query<&SpawnResourceNodeOnDeath>,
 ) {
     for event in destroy_event_reader.iter() {
         //Clear out targets
@@ -31,7 +42,18 @@ fn destroyer_system(
                 }
             }
         }
-
+        if let Ok(e) = transforms.get(event.0) {
+            if let Ok(spawn) = spawn_on_death.get(event.0) {
+                let mut rng = rand::thread_rng();
+                if rng.gen_range(0.0..100.0) < spawn.chance {
+                    spawn_bloodrock_node(
+                        &mut cmd,
+                        &resource_assets,
+                        e.translation(),
+                    );
+                }
+            }
+        }
         cmd.entity(event.0).despawn_recursive();
     }
 }
