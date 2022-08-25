@@ -33,3 +33,7 @@ tracing = "0.1.36"
 winit = "0.26.1"
 rand = "0.8.4"
 ezing = "0.2.1"
+
+# Work around a flickering issue in Chrome on Mac
+[patch.crates-io]
+wgpu = { git = "https://github.com/mockersf/wgpu/", branch = "unconditional-clear-workaround" }
