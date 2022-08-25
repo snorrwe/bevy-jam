@@ -120,7 +120,7 @@ fn spawn_regular_enemy(
                 hp_max: 100.0,
             }),
             transform: Transform::from_translation(
-                Vec3::Z * -200.0 + Vec3::Y * 50.0,
+                Vec3::Z * 200.0 + Vec3::Y * 50.0,
             ),
             ..Default::default()
         });
