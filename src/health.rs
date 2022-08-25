@@ -1,3 +1,5 @@
+pub mod hp_material;
+
 use crate::{
     combat::CombatComponent,
     easing::Easing,
@@ -157,9 +159,15 @@ pub struct HealthPlugin;
 
 impl Plugin for HealthPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<HealthChangedEvent>()
-            .add_event::<DestroyEntity>()
-            .add_system(health_change_system)
-            .add_system_to_stage(CoreStage::PostUpdate, destroyer_system);
+        app.add_plugin(
+            bevy::sprite::Material2dPlugin::<hp_material::HpMaterial>::default(
+            ),
+        )
+        .add_event::<HealthChangedEvent>()
+        .add_event::<DestroyEntity>()
+        .add_system(health_change_system)
+        .add_system(hp_material::update_hp_materials)
+        .add_asset::<hp_material::HpMaterial>()
+        .add_system_to_stage(CoreStage::PostUpdate, destroyer_system);
     }
 }

@@ -1,10 +1,10 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::{
     collision,
     combat::{AttackState, AttackType, CombatComponent},
     game::Velocity,
-    health::{Health, SpawnResourceNodeOnDeath},
+    health::{hp_material, Health, SpawnResourceNodeOnDeath},
     worker_logic::UnitFollowPlayer,
     GameTime,
 };
@@ -41,6 +41,9 @@ fn enemy_spawner_system(
     enemy_assets: Res<EnemyAssets>,
     mut cmd: Commands,
     mut enemy_spawners: Query<(&mut EnemySpawner, &GlobalTransform)>,
+    mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
+    // FIXME: reuse the same mesh?
+    mut mesh_assets: ResMut<Assets<Mesh>>,
 ) {
     let mut rng = rand::thread_rng();
     for (mut enemy_spawner, global_tr) in enemy_spawners.iter_mut() {
@@ -58,6 +61,8 @@ fn enemy_spawner_system(
                     )
                     .normalize()
                         * enemy_spawner.distance_from_spawn_point),
+                &mut *hp_assets,
+                &mut *mesh_assets,
             )
         }
     }
@@ -67,6 +72,8 @@ fn spawn_regular_enemy(
     cmd: &mut Commands,
     game_assets: &EnemyAssets,
     pos: Vec3,
+    hp_assets: &mut Assets<hp_material::HpMaterial>,
+    mesh_assets: &mut Assets<Mesh>,
 ) {
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.basic_enemy_sprite.clone(),
@@ -97,7 +104,27 @@ fn spawn_regular_enemy(
     .insert(Transform::from_translation(pos))
     .insert(Velocity(150.))
     .insert(BasicEnemyLogic)
-    .insert(SpawnResourceNodeOnDeath { chance: 10. });
+    .insert(SpawnResourceNodeOnDeath { chance: 10. })
+    .with_children(|cmd| {
+        cmd.spawn_bundle(MaterialMesh2dBundle {
+            mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(Mesh::from(
+                shape::Quad {
+                    size: Vec2::new(100.0, 10.0),
+                    flip: false,
+                },
+            ))),
+            material: hp_assets.add(hp_material::HpMaterial {
+                color_empty: Color::RED,
+                color_full: Color::CYAN,
+                hp: 50.0,
+                hp_max: 100.0,
+            }),
+            transform: Transform::from_translation(
+                Vec3::Z * -200.0 + Vec3::Y * 50.0,
+            ),
+            ..Default::default()
+        });
+    });
 }
 
 fn setup_system(
