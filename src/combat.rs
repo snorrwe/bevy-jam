@@ -21,6 +21,7 @@ pub enum AttackType {
 pub struct Projectile {
     target: Entity,
     damage: f32,
+    piercing: f32,
     speed: f32,
 }
 
@@ -36,6 +37,7 @@ pub enum AttackState {
 pub struct CombatComponent {
     pub target: Option<Entity>,
     pub damage: f32,
+    pub piercing: f32,
     pub time_between_attacks: Timer,
     pub attack_range: f32,
     pub attack_type: AttackType,
@@ -120,6 +122,7 @@ fn healer_heal_component(
                                     speed: 500.,
                                     damage: -healer_comp.heal_amount,
                                     target: target_entity,
+                                    piercing: 0.,
                                 })
                                 .insert(proj_transform);
 
@@ -242,6 +245,7 @@ fn projectile_flying_system(
                 health_changed_event_writer.send(HealthChangedEvent {
                     target: proj.target,
                     amount: -proj.damage,
+                    piercing: proj.piercing,
                 });
                 cmd.entity(e).despawn_recursive();
             } else {
@@ -344,6 +348,7 @@ fn combat_system(
                                 .insert(Projectile {
                                     speed: 500.,
                                     damage: combat_comp.damage,
+                                    piercing: combat_comp.piercing,
                                     target: target,
                                 })
                                 .insert(proj_transform);
@@ -352,6 +357,7 @@ fn combat_system(
                                 health_changed_event_writer.send(
                                     HealthChangedEvent {
                                         amount: -combat_comp.damage,
+                                        piercing: combat_comp.piercing,
                                         target: target,
                                     },
                                 );

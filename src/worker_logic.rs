@@ -167,11 +167,11 @@ fn set_stats_based_on_class_and_size_system(
             let mut time_to_attack = 1.;
             match class {
                 UnitClass::Piker => {
-                    damage = 1.;
-                    time_to_attack = 1.5;
+                    damage = 1.3;
+                    time_to_attack = 1.2;
                 }
                 UnitClass::Sworder => {
-                    damage = 1.5;
+                    damage = 1.2;
                     time_to_attack = 0.75;
                 }
                 UnitClass::Ranged => {
@@ -256,12 +256,13 @@ pub fn change_class(
         UnitClass::Sworder => {
             entity_commands.insert(CombatComponent {
                 target: None,
-                damage: 1.,
+                damage: 1.5,
                 time_between_attacks: Timer::from_seconds(1., true),
                 attack_range: 70.,
                 attack_type: AttackType::Melee,
                 attack_state: AttackState::NotAttacking,
                 target_type: UnitType::Enemy,
+                piercing: 0.,
             });
         }
         UnitClass::Piker => {
@@ -273,6 +274,7 @@ pub fn change_class(
                 attack_type: AttackType::Melee,
                 attack_state: AttackState::NotAttacking,
                 target_type: UnitType::Enemy,
+                piercing: 0.75,
             });
         }
         UnitClass::Ranged => {
@@ -284,6 +286,7 @@ pub fn change_class(
                 attack_type: AttackType::Ranged,
                 attack_state: AttackState::NotAttacking,
                 target_type: UnitType::Enemy,
+                piercing: 0.2,
             });
         }
         UnitClass::Tank => {
@@ -296,6 +299,7 @@ pub fn change_class(
                     attack_type: AttackType::Melee,
                     attack_state: AttackState::NotAttacking,
                     target_type: UnitType::Enemy,
+                    piercing: 0.,
                 })
                 .insert(TankComponent {
                     time_between_taunts: Timer::from_seconds(3., true),

@@ -92,6 +92,7 @@ fn spawn_regular_enemy(
     .insert(Health {
         current_health: 5.,
         max_health: 5.,
+        armor: 0.5,
     })
     .insert(CombatComponent {
         target: None,
@@ -101,6 +102,7 @@ fn spawn_regular_enemy(
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
         target_type: UnitType::Ally,
+        piercing: 0.,
     })
     .insert(Transform::from_translation(pos))
     .insert(Velocity(150.))

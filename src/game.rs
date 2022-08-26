@@ -679,6 +679,7 @@ fn spawn_unit_with_class(
     let mut health_comp = Health {
         current_health: 10.,
         max_health: 10.,
+        armor: 0.,
     };
     change_class(entity_id, cmd, class, &mut health_comp);
     cmd.entity(entity_id).insert(health_comp);
