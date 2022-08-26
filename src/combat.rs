@@ -56,6 +56,7 @@ fn healer_heal_component(
     healths: Query<&Health>,
     global_transform: Query<&GlobalTransform>,
     time: Res<GameTime>,
+    game_assets: Res<GameAssets>,
     mut health_changed_event_sender: EventWriter<HealthChangedEvent>,
 ) {
     for (mut tr, mut healer_comp, vel, healer_entity) in healers.iter_mut() {
@@ -94,12 +95,26 @@ fn healer_heal_component(
                         HealingState::Casting(ref mut timer) => {
                             timer.tick(time.delta());
                             if timer.finished() {
-                                health_changed_event_sender.send(
-                                    HealthChangedEvent {
-                                        amount: healer_comp.heal_amount,
-                                        target: target_entity,
+                                let mut proj_transform =
+                                    Transform::from_translation(tr.translation);
+                                proj_transform.scale = Vec3::splat(0.3);
+                                cmd.spawn_bundle(SpriteSheetBundle {
+                                    texture_atlas: game_assets
+                                        .circle_sprite
+                                        .clone(),
+                                    sprite: TextureAtlasSprite {
+                                        color: Color::GREEN,
+                                        ..Default::default()
                                     },
-                                );
+                                    ..Default::default()
+                                })
+                                .insert(Projectile {
+                                    speed: 500.,
+                                    damage: -healer_comp.heal_amount,
+                                    target: target_entity,
+                                })
+                                .insert(proj_transform);
+
                                 cmd.entity(healer_entity).insert(
                                     RotationAnimation(Animation::<Quat> {
                                         from: tr.rotation,

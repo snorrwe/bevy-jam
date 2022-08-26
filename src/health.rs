@@ -34,7 +34,7 @@ fn destroyer_system(
     mut cmd: Commands,
     resource_assets: Res<ResourceAssets>,
     mut destroy_event_reader: EventReader<DestroyEntity>,
-    mut combat_comps: Query<(&mut CombatComponent, &Transform)>,
+    mut combat_comps: Query<(&mut CombatComponent, &Transform, Entity)>,
     mut healer_comps: Query<&mut HealerComponent>,
     transforms: Query<&GlobalTransform>,
     spawn_on_death: Query<&SpawnResourceNodeOnDeath>,
@@ -43,12 +43,14 @@ fn destroyer_system(
 ) {
     for event in destroy_event_reader.iter() {
         //Clear out targets
-        for (mut combat_comp, transform) in combat_comps.iter_mut() {
+        for (mut combat_comp, transform, combat_entity) in
+            combat_comps.iter_mut()
+        {
             if let Some(e) = combat_comp.target {
                 if e == event.0 {
                     combat_comp.target = None;
                     combat_comp.attack_state = AttackState::NotAttacking;
-                    cmd.entity(e).insert(RotationAnimation(
+                    cmd.entity(combat_entity).insert(RotationAnimation(
                         Animation::<Quat> {
                             from: transform.rotation,
                             to: Quat::from_rotation_z(0.),
