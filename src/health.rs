@@ -13,7 +13,7 @@ use bevy::prelude::*;
 use rand::Rng;
 use std::time::Duration;
 
-#[derive(Component)]
+#[derive(Component, Copy, Clone)]
 pub struct Health {
     pub max_health: f32,
     pub current_health: f32,
@@ -118,11 +118,7 @@ fn health_change_system(
     for event in health_changed_events.iter() {
         if let Ok((mut health, _, tr)) = health_query.get_mut(event.target) {
             let modifier = (1. - health.armor + event.piercing).clamp(0.01, 1.);
-            info!(
-                "Damage without modifier: {}, damage with modifier: {}",
-                event.amount,
-                event.amount * modifier
-            );
+
             let mut amount = event.amount;
             if event.amount < 0. {
                 amount *= modifier;

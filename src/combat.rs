@@ -11,6 +11,7 @@ use crate::{
 };
 use bevy::prelude::*;
 
+#[derive(Clone, Copy)]
 pub enum AttackType {
     Melee,
     Ranged,
@@ -26,6 +27,8 @@ pub struct Projectile {
 }
 
 //Helps sync up animation with damage dealing
+
+#[derive(Clone)]
 pub enum AttackState {
     NotAttacking,
     AttackStart { timer: Timer },
@@ -33,7 +36,7 @@ pub enum AttackState {
     AttackEnd { timer: Timer },
 }
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct CombatComponent {
     pub target: Option<Entity>,
     pub damage: f32,

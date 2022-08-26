@@ -24,6 +24,16 @@ pub struct EnemySpawner {
     pub distance_from_spawn_point: f32,
 }
 
+enum EnemyTypesToSpawn {
+    Thrash,
+    Ranged,
+    Sworder,
+    Piker,
+    Armored,
+    Healer,
+    Boss,
+}
+
 fn enemy_targetting_logic_system(
     mut enemies: Query<&mut CombatComponent, With<BasicEnemyLogic>>,
     allys: Query<Entity, With<UnitFollowPlayer>>,
@@ -63,6 +73,21 @@ fn enemy_spawner_system(
                         * enemy_spawner.distance_from_spawn_point),
                 &mut *hp_assets,
                 &mut *mesh_assets,
+                &Health {
+                    current_health: 5.,
+                    max_health: 5.,
+                    armor: 0.5,
+                },
+                &CombatComponent {
+                    target: None,
+                    damage: 1.,
+                    time_between_attacks: Timer::from_seconds(1., true),
+                    attack_range: 80.,
+                    attack_type: AttackType::Melee,
+                    attack_state: AttackState::NotAttacking,
+                    target_type: UnitType::Ally,
+                    piercing: 0.,
+                },
             )
         }
     }
@@ -74,6 +99,8 @@ fn spawn_regular_enemy(
     pos: Vec3,
     hp_assets: &mut Assets<hp_material::HpMaterial>,
     mesh_assets: &mut Assets<Mesh>,
+    health: &Health,
+    combat_comp: &CombatComponent,
 ) {
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.basic_enemy_sprite.clone(),
@@ -89,21 +116,8 @@ fn spawn_regular_enemy(
         },
         ..Default::default()
     })
-    .insert(Health {
-        current_health: 5.,
-        max_health: 5.,
-        armor: 0.5,
-    })
-    .insert(CombatComponent {
-        target: None,
-        damage: 1.,
-        time_between_attacks: Timer::from_seconds(1., true),
-        attack_range: 80.,
-        attack_type: AttackType::Melee,
-        attack_state: AttackState::NotAttacking,
-        target_type: UnitType::Ally,
-        piercing: 0.,
-    })
+    .insert(*health)
+    .insert(combat_comp.clone())
     .insert(Transform::from_translation(pos))
     .insert(Velocity(150.))
     .insert(BasicEnemyLogic)

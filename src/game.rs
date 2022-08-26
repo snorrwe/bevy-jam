@@ -26,7 +26,7 @@ pub struct MovementAnimationController {
     last_frame_pos: Vec3,
 }
 
-#[derive(Component)]
+#[derive(Component, Clone, Copy)]
 pub enum UnitType {
     Ally,
     Enemy,
