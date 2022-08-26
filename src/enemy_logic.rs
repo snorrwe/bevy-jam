@@ -63,27 +63,9 @@ fn get_test_level() -> Level {
             },
             Wave {
                 spawn_data: vec![
-                    (
-                        vec![
-                            EnemyTypesToSpawn::Thrash,
-                            EnemyTypesToSpawn::Thrash,
-                        ],
-                        Vec3::new(0., 500., 0.),
-                    ),
-                    (
-                        vec![
-                            EnemyTypesToSpawn::Ranged,
-                            EnemyTypesToSpawn::Thrash,
-                        ],
-                        Vec3::new(-300., 0., 0.),
-                    ),
-                    (
-                        vec![
-                            EnemyTypesToSpawn::Ranged,
-                            EnemyTypesToSpawn::Thrash,
-                        ],
-                        Vec3::new(300., 0., 0.),
-                    ),
+                    (vec![EnemyTypesToSpawn::Thrash], Vec3::new(0., 500., 0.)),
+                    (vec![EnemyTypesToSpawn::Ranged], Vec3::new(-300., 0., 0.)),
+                    (vec![EnemyTypesToSpawn::Thrash], Vec3::new(300., 0., 0.)),
                 ],
                 time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
             },
