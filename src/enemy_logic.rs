@@ -3,7 +3,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use crate::{
     collision,
     combat::{AttackState, AttackType, CombatComponent},
-    game::Velocity,
+    game::{DontSortZ, Velocity},
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
     worker_logic::UnitFollowPlayer,
     GameTime,
@@ -109,21 +109,22 @@ fn spawn_regular_enemy(
         cmd.spawn_bundle(MaterialMesh2dBundle {
             mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(Mesh::from(
                 shape::Quad {
-                    size: Vec2::new(100.0, 10.0),
+                    size: Vec2::new(60.0, 10.0),
                     flip: false,
                 },
             ))),
             material: hp_assets.add(hp_material::HpMaterial {
                 color_empty: Color::RED,
-                color_full: Color::CYAN,
+                color_full: Color::ORANGE_RED,
                 hp: 50.0,
                 hp_max: 100.0,
             }),
             transform: Transform::from_translation(
-                Vec3::Z * 200.0 + Vec3::Y * 50.0,
+                Vec3::Z * 200.0 + Vec3::Y * 60.0,
             ),
             ..Default::default()
-        });
+        })
+        .insert(DontSortZ);
     });
 }
 

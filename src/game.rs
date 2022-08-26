@@ -479,7 +479,7 @@ fn setup_game(
     mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
 ) {
     game_assets.hp_mesh = mesh_assets.add(Mesh::from(shape::Quad {
-        size: Vec2::new(100.0, 10.0),
+        size: Vec2::new(50.0, 10.0),
         flip: false,
     }));
     game_assets.player_sprite = texture_atlases.add(TextureAtlas::from_grid(
@@ -651,19 +651,23 @@ fn spawn_unit_with_class(
                         .insert(DontSortZ)
                         .insert(WorkerEye);
                 });
-            child.spawn_bundle(MaterialMesh2dBundle {
-                mesh: bevy::sprite::Mesh2dHandle(game_assets.hp_mesh.clone()),
-                material: hp_assets.add(hp_material::HpMaterial {
-                    color_empty: Color::RED,
-                    color_full: Color::GREEN,
-                    hp: 0.0,
-                    hp_max: 0.0,
-                }),
-                transform: Transform::from_translation(
-                    Vec3::Z * 200.0 + Vec3::Y * 50.0,
-                ),
-                ..Default::default()
-            });
+            child
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: bevy::sprite::Mesh2dHandle(
+                        game_assets.hp_mesh.clone(),
+                    ),
+                    material: hp_assets.add(hp_material::HpMaterial {
+                        color_empty: Color::RED,
+                        color_full: Color::GREEN,
+                        hp: 0.0,
+                        hp_max: 0.0,
+                    }),
+                    transform: Transform::from_translation(
+                        Vec3::Z * 200.0 + Vec3::Y * 60.0,
+                    ),
+                    ..Default::default()
+                })
+                .insert(DontSortZ);
         })
         .id();
     let mut health_comp = Health {
