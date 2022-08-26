@@ -1,6 +1,7 @@
 use bevy::prelude::Component;
 
 #[derive(Clone, Component)]
+#[allow(unused)]
 pub enum Easing {
     None,
     Linear,

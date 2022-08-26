@@ -107,7 +107,8 @@ fn select_worker_system(
                 .is_some()
                 {
                     trace!("Hovering {:?}", entity);
-                    hovered.0 = Some(entity)
+                    hovered.0 = Some(entity);
+                    break;
                 }
             }
         }
