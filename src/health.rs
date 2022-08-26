@@ -1,11 +1,13 @@
 pub mod hp_material;
 
 use crate::{
-    combat::CombatComponent,
+    animation::{Animation, RotationAnimation},
+    combat::{AttackState, CombatComponent},
     easing::Easing,
     game::{spawn_bloodrock_node, GameAssets, ResourceAssets},
     interaction::{Hovered, Selected},
     particles,
+    worker_logic::HealerComponent,
 };
 use bevy::prelude::*;
 use rand::Rng;
@@ -32,7 +34,8 @@ fn destroyer_system(
     mut cmd: Commands,
     resource_assets: Res<ResourceAssets>,
     mut destroy_event_reader: EventReader<DestroyEntity>,
-    mut combat_comps: Query<&mut CombatComponent>,
+    mut combat_comps: Query<(&mut CombatComponent, &Transform)>,
+    mut healer_comps: Query<&mut HealerComponent>,
     transforms: Query<&GlobalTransform>,
     spawn_on_death: Query<&SpawnResourceNodeOnDeath>,
     mut selected: ResMut<Selected>,
@@ -40,10 +43,27 @@ fn destroyer_system(
 ) {
     for event in destroy_event_reader.iter() {
         //Clear out targets
-        for mut combat_comp in combat_comps.iter_mut() {
+        for (mut combat_comp, transform) in combat_comps.iter_mut() {
             if let Some(e) = combat_comp.target {
                 if e == event.0 {
                     combat_comp.target = None;
+                    combat_comp.attack_state = AttackState::NotAttacking;
+                    cmd.entity(e).insert(RotationAnimation(
+                        Animation::<Quat> {
+                            from: transform.rotation,
+                            to: Quat::from_rotation_z(0.),
+                            timer: Timer::from_seconds(0.2, false),
+                            easing: Easing::QuartOut,
+                        },
+                    ));
+                }
+            }
+        }
+        //TODO: maybe make a single target component, so we dont have to add this for every new component with a target
+        for mut healer_comp in healer_comps.iter_mut() {
+            if let Some(e) = healer_comp.target {
+                if e == event.0 {
+                    healer_comp.target = None;
                 }
             }
         }
