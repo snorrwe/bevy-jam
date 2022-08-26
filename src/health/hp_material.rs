@@ -45,14 +45,14 @@ pub fn update_hp_bar_transform(
     mut q: Query<(&mut Transform, &Parent), With<Handle<HpMaterial>>>,
     parents: Query<&GlobalTransform>,
 ) {
-    q.par_for_each_mut(128, |(mut tr, parent)| {
+    q.for_each_mut(|(mut tr, parent)| {
         if let Ok(global_tr) = parents.get(**parent) {
             let (scale, rotation, _) =
                 global_tr.to_scale_rotation_translation();
             let scale = 1.0 / scale;
             let rotation = rotation.inverse();
-            tr.rotation = rotation;
-            tr.scale = scale;
+            tr.rotation = tr.rotation.slerp(rotation, 0.2);
+            tr.scale = tr.scale.lerp(scale, 0.5);
         }
     });
 }
