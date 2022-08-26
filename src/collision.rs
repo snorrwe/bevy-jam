@@ -136,7 +136,7 @@ fn aabb_sort_sweep_system(
             }
 
             // `collides` is not commutative
-            if (f1.collides(*f2) || f2.collides(*f1)) && aabb_aabb(aabb1, aabb2)
+            if aabb_aabb(aabb1, aabb2) && (f1.collides(*f2) || f2.collides(*f1))
             {
                 trace!(
                     "Collision between {:?} {:?} {:?} {:?}",
