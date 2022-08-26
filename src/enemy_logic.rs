@@ -3,7 +3,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use crate::{
     collision,
     combat::{AttackState, AttackType, CombatComponent},
-    game::{DontSortZ, Velocity},
+    game::{DontSortZ, UnitType, Velocity},
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
     worker_logic::UnitFollowPlayer,
     GameTime,
@@ -100,6 +100,7 @@ fn spawn_regular_enemy(
         attack_range: 80.,
         attack_type: AttackType::Melee,
         attack_state: AttackState::NotAttacking,
+        target_type: UnitType::Ally,
     })
     .insert(Transform::from_translation(pos))
     .insert(Velocity(150.))

@@ -26,6 +26,12 @@ pub struct MovementAnimationController {
     last_frame_pos: Vec3,
 }
 
+#[derive(Component)]
+pub enum UnitType {
+    Ally,
+    Enemy,
+}
+
 #[derive(Default)]
 pub struct GameAssets {
     pub player_sprite: Handle<TextureAtlas>,

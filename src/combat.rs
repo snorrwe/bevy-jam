@@ -1,8 +1,12 @@
 use crate::{
     animation::{Animation, RotationAnimation},
     easing::Easing,
-    game::{AvoidOthers, GameAssets, Velocity},
-    health::HealthChangedEvent,
+    enemy_logic::BasicEnemyLogic,
+    game::{AvoidOthers, GameAssets, UnitType, Velocity},
+    health::{Health, HealthChangedEvent},
+    worker_logic::{
+        HealerComponent, HealingState, TankComponent, UnitFollowPlayer,
+    },
     GameTime,
 };
 use bevy::prelude::*;
@@ -36,6 +40,165 @@ pub struct CombatComponent {
     pub attack_range: f32,
     pub attack_type: AttackType,
     pub attack_state: AttackState,
+    pub target_type: UnitType,
+}
+
+fn healer_heal_component(
+    mut cmd: Commands,
+    mut healers: Query<(
+        &mut Transform,
+        &mut HealerComponent,
+        &Velocity,
+        Entity,
+    )>,
+    allys: Query<Entity, With<UnitFollowPlayer>>,
+    enemies: Query<Entity, With<BasicEnemyLogic>>,
+    healths: Query<&Health>,
+    global_transform: Query<&GlobalTransform>,
+    time: Res<GameTime>,
+    mut health_changed_event_sender: EventWriter<HealthChangedEvent>,
+) {
+    for (mut tr, mut healer_comp, vel, healer_entity) in healers.iter_mut() {
+        if let Some(target_entity) = healer_comp.target {
+            if let Ok(health_comp) = healths.get(target_entity) {
+                if health_comp.current_health >= health_comp.max_health {
+                    healer_comp.target = None;
+                }
+            }
+
+            healer_comp.time_between_heals.tick(time.delta());
+            if let Ok(global_tr) = global_transform.get(target_entity) {
+                let pointing_vec = global_tr.translation().truncate()
+                    - tr.translation.truncate();
+                let distance = pointing_vec.length();
+                let dir = pointing_vec.extend(0.).normalize();
+
+                if distance < healer_comp.range {
+                    match &mut healer_comp.state {
+                        HealingState::Idle => {
+                            if healer_comp.time_between_heals.finished() {
+                                healer_comp.time_between_heals.reset();
+                                healer_comp.state = HealingState::Casting(
+                                    Timer::from_seconds(0.8, false),
+                                );
+                                cmd.entity(healer_entity).insert(
+                                    RotationAnimation(Animation::<Quat> {
+                                        from: Quat::from_rotation_z(-0.2),
+                                        to: Quat::from_rotation_z(0.2),
+                                        timer: Timer::from_seconds(0.2, true),
+                                        easing: Easing::PulsateInOutCubic,
+                                    }),
+                                );
+                            }
+                        }
+                        HealingState::Casting(ref mut timer) => {
+                            timer.tick(time.delta());
+                            if timer.finished() {
+                                health_changed_event_sender.send(
+                                    HealthChangedEvent {
+                                        amount: healer_comp.heal_amount,
+                                        target: target_entity,
+                                    },
+                                );
+                                cmd.entity(healer_entity).insert(
+                                    RotationAnimation(Animation::<Quat> {
+                                        from: tr.rotation,
+                                        to: Quat::from_rotation_z(0.),
+                                        timer: Timer::from_seconds(0.2, false),
+                                        easing: Easing::QuartOut,
+                                    }),
+                                );
+                                healer_comp.state = HealingState::Idle;
+                            }
+                        }
+                    }
+                } else if matches!(healer_comp.state, HealingState::Idle) {
+                    tr.translation += dir * vel.0 * time.delta_seconds();
+                }
+            }
+        } else {
+            let mut least_healthy_ally: (Option<Entity>, f32) =
+                (None, 99999999.);
+            match healer_comp.target_type {
+                UnitType::Ally => {
+                    for e in allys.iter() {
+                        if let Ok(h) = healths.get(e) {
+                            if h.current_health < h.max_health
+                                && h.current_health < least_healthy_ally.1
+                            {
+                                least_healthy_ally.1 = h.current_health;
+                                least_healthy_ally.0 = Some(e);
+                            }
+                        }
+                    }
+                }
+                UnitType::Enemy => {
+                    for e in enemies.iter() {
+                        if let Ok(h) = healths.get(e) {
+                            if h.current_health < h.max_health
+                                && h.current_health < least_healthy_ally.1
+                            {
+                                least_healthy_ally.1 = h.current_health;
+                                least_healthy_ally.0 = Some(e);
+                            }
+                        }
+                    }
+                }
+            }
+            if least_healthy_ally.0.is_some() {}
+            healer_comp.target = least_healthy_ally.0;
+        }
+    }
+}
+
+fn tank_aggro_component(
+    mut tanks: Query<
+        (&GlobalTransform, &mut TankComponent, Entity),
+        Without<BasicEnemyLogic>,
+    >,
+    mut enemies: Query<
+        (&mut CombatComponent, &GlobalTransform),
+        With<BasicEnemyLogic>,
+    >,
+    mut allys: Query<
+        (&mut CombatComponent, &GlobalTransform),
+        Without<BasicEnemyLogic>,
+    >,
+    time: Res<GameTime>,
+) {
+    for (tank_tr, mut tank_comp, e) in tanks.iter_mut() {
+        tank_comp.time_between_taunts.tick(time.delta());
+        if tank_comp.time_between_taunts.just_finished() {
+            tank_comp.time_between_taunts.reset();
+
+            //Spawn particles, sound
+            match tank_comp.target_type {
+                UnitType::Ally => {
+                    for (mut ally_combat_comp, ally_tr) in allys.iter_mut() {
+                        if (tank_tr.translation().truncate()
+                            - ally_tr.translation().truncate())
+                        .length()
+                            < 300.
+                        {
+                            ally_combat_comp.target = Some(e);
+                        }
+                    }
+                }
+                UnitType::Enemy => {
+                    for (mut enemy_combat_comp, enemy_tr) in enemies.iter_mut()
+                    {
+                        if (tank_tr.translation().truncate()
+                            - enemy_tr.translation().truncate())
+                        .length()
+                            < 300.
+                        {
+                            enemy_combat_comp.target = Some(e);
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn projectile_flying_system(
@@ -208,6 +371,8 @@ pub struct CombatPlugin;
 impl Plugin for CombatPlugin {
     fn build(&self, app: &mut App) {
         app.add_system(combat_system)
-            .add_system(projectile_flying_system);
+            .add_system(projectile_flying_system)
+            .add_system(tank_aggro_component)
+            .add_system(healer_heal_component);
     }
 }

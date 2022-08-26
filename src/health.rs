@@ -89,6 +89,12 @@ fn health_change_system(
                     game_assets.circle_sprite.clone(),
                     tr.translation(),
                 );
+            } else {
+                spawn_healing_particles(
+                    &mut commands,
+                    game_assets.circle_sprite.clone(),
+                    tr.translation(),
+                );
             }
 
             health.current_health =
@@ -101,6 +107,58 @@ fn health_change_system(
             destroy_event_writer.send(DestroyEntity(e));
         }
     }
+}
+
+fn spawn_healing_particles(
+    commands: &mut Commands,
+    texture: Handle<TextureAtlas>,
+    pos: Vec3,
+) {
+    let body = particles::ParticleBody::SpriteSheet {
+        sheet_bundle: SpriteSheetBundle {
+            texture_atlas: texture.clone(),
+            sprite: TextureAtlasSprite {
+                color: Color::GREEN,
+                ..Default::default()
+            },
+            transform: Transform::from_scale(Vec3::splat(0.)),
+            ..Default::default()
+        },
+        color_over_lifetime: Some(particles::SpriteColorOverLifetime {
+            start_color: Color::GREEN,
+            end_color: Color::DARK_GREEN,
+            easing: Easing::Linear,
+        }),
+    };
+    commands.spawn_bundle(particles::EmitterBundle {
+        lifetime: particles::Lifetime(Timer::new(
+            Duration::from_millis(500),
+            false,
+        )),
+        spawn_timer: particles::SpawnTimer(Timer::new(
+            Duration::from_millis(40),
+            false,
+        )),
+        config: particles::SpawnConfig {
+            min_count: 3,
+            max_count: 6,
+            min_life: Duration::from_millis(400),
+            max_life: Duration::from_millis(600),
+            min_vel: -4.0,
+            max_vel: 4.0,
+            min_acc: -0.05,
+            max_acc: -0.03,
+            easing: Easing::OutElastic,
+            size_over_lifetime: particles::SizeOverLifetime {
+                start_size: Vec3::splat(0.6),
+                end_size: Vec3::splat(0.1),
+                easing: Easing::QuartOut,
+            },
+            bodies: vec![body],
+        },
+        transform: Transform::from_translation(pos),
+        global_transform: Default::default(),
+    });
 }
 
 fn spawn_health_particles(

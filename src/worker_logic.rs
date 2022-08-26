@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     combat::{AttackState, AttackType, CombatComponent},
     enemy_logic::BasicEnemyLogic,
-    game::{GameAssets, Harvester, PlayerController},
+    game::{GameAssets, Harvester, PlayerController, UnitType},
     get_children_recursive,
     health::Health,
     interaction::{MouseFollow, Selected},
@@ -20,9 +20,23 @@ pub struct WorkerEye;
 pub struct UnitFollowPlayer;
 
 #[derive(Component)]
-pub struct TankComponent;
+pub struct TankComponent {
+    pub time_between_taunts: Timer,
+    pub target_type: UnitType,
+}
+pub enum HealingState {
+    Idle,
+    Casting(Timer),
+}
 #[derive(Component)]
-pub struct HealerComponent;
+pub struct HealerComponent {
+    pub target: Option<Entity>,
+    pub time_between_heals: Timer,
+    pub range: f32,
+    pub heal_amount: f32,
+    pub state: HealingState,
+    pub target_type: UnitType,
+}
 
 #[derive(Component, Clone, Copy, PartialEq)]
 pub enum UnitClass {
@@ -247,6 +261,7 @@ pub fn change_class(
                 attack_range: 70.,
                 attack_type: AttackType::Melee,
                 attack_state: AttackState::NotAttacking,
+                target_type: UnitType::Enemy,
             });
         }
         UnitClass::Piker => {
@@ -257,6 +272,7 @@ pub fn change_class(
                 attack_range: 100.,
                 attack_type: AttackType::Melee,
                 attack_state: AttackState::NotAttacking,
+                target_type: UnitType::Enemy,
             });
         }
         UnitClass::Ranged => {
@@ -267,6 +283,7 @@ pub fn change_class(
                 attack_range: 300.,
                 attack_type: AttackType::Ranged,
                 attack_state: AttackState::NotAttacking,
+                target_type: UnitType::Enemy,
             });
         }
         UnitClass::Tank => {
@@ -274,17 +291,28 @@ pub fn change_class(
                 .insert(CombatComponent {
                     target: None,
                     damage: 0.5,
-                    time_between_attacks: Timer::from_seconds(3., true),
+                    time_between_attacks: Timer::from_seconds(2., true),
                     attack_range: 70.,
                     attack_type: AttackType::Melee,
                     attack_state: AttackState::NotAttacking,
+                    target_type: UnitType::Enemy,
                 })
-                .insert(TankComponent);
+                .insert(TankComponent {
+                    time_between_taunts: Timer::from_seconds(3., true),
+                    target_type: UnitType::Enemy,
+                });
             health.max_health *= 2.;
             health.current_health *= 2.;
         }
         UnitClass::Healer => {
-            entity_commands.insert(HealerComponent);
+            entity_commands.insert(HealerComponent {
+                target: None,
+                time_between_heals: Timer::from_seconds(1.5, false),
+                range: 300.,
+                state: HealingState::Idle,
+                heal_amount: 0.5,
+                target_type: UnitType::Ally,
+            });
         }
     }
 }
@@ -395,7 +423,7 @@ fn player_follower_system(
             let direction_vector = player_tr.translation() - tr.translation;
 
             let direction_vector = direction_vector.truncate();
-            if direction_vector.length() < 200. {
+            if direction_vector.length() < 400. {
                 continue;
             }
             let direction_vector = direction_vector.normalize();
