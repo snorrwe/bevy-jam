@@ -5,7 +5,9 @@ use crate::{
     combat::{AttackState, AttackType, CombatComponent},
     game::{DontSortZ, UnitType, Velocity},
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
-    worker_logic::UnitFollowPlayer,
+    worker_logic::{
+        HealerComponent, HealingState, TankComponent, UnitFollowPlayer,
+    },
     GameTime,
 };
 use rand::Rng;
@@ -31,7 +33,145 @@ enum EnemyTypesToSpawn {
     Piker,
     Armored,
     Healer,
-    Boss,
+    Boss1,
+}
+
+fn spawn_enemy_based_on_type(
+    enemy_type: EnemyTypesToSpawn,
+    mut cmd: &mut Commands,
+    enemy_assets: &EnemyAssets,
+    pos: Vec3,
+    hp_assets: &mut Assets<hp_material::HpMaterial>,
+    mesh_assets: &mut Assets<Mesh>,
+) {
+    let mut spawn_enemy =
+        |health: Health, combat_compo: Option<&CombatComponent>| -> Entity {
+            spawn_regular_enemy(
+                &mut cmd,
+                &enemy_assets,
+                pos,
+                &mut *hp_assets,
+                &mut *mesh_assets,
+                &health,
+                combat_compo,
+            )
+        };
+
+    match enemy_type {
+        EnemyTypesToSpawn::Thrash => {
+            spawn_enemy(
+                Health {
+                    current_health: 3.,
+                    max_health: 3.,
+                    armor: 0.,
+                },
+                Some(&CombatComponent {
+                    target_type: UnitType::Ally,
+                    attack_type: AttackType::Melee,
+                    damage: 0.5,
+                    time_between_attacks: Timer::from_seconds(1., true),
+                    attack_range: 80.,
+                    piercing: 0.,
+                    ..Default::default()
+                }),
+            );
+        }
+        EnemyTypesToSpawn::Ranged => {
+            spawn_enemy(
+                Health {
+                    current_health: 2.,
+                    max_health: 2.,
+                    armor: 0.,
+                },
+                Some(&CombatComponent {
+                    target_type: UnitType::Ally,
+                    attack_type: AttackType::Ranged,
+                    damage: 1.,
+                    time_between_attacks: Timer::from_seconds(1., true),
+                    attack_range: 200.,
+                    piercing: 0.,
+                    ..Default::default()
+                }),
+            );
+        }
+        EnemyTypesToSpawn::Sworder => {
+            spawn_enemy(
+                Health {
+                    current_health: 2.,
+                    max_health: 2.,
+                    armor: 0.,
+                },
+                Some(&CombatComponent {
+                    target_type: UnitType::Ally,
+                    attack_type: AttackType::Melee,
+                    damage: 1.3,
+                    time_between_attacks: Timer::from_seconds(1., true),
+                    attack_range: 80.,
+                    piercing: 0.,
+                    ..Default::default()
+                }),
+            );
+        }
+        EnemyTypesToSpawn::Piker => {
+            spawn_enemy(
+                Health {
+                    current_health: 2.,
+                    max_health: 2.,
+                    armor: 0.,
+                },
+                Some(&CombatComponent {
+                    target_type: UnitType::Ally,
+                    attack_type: AttackType::Melee,
+                    damage: 1.25,
+                    time_between_attacks: Timer::from_seconds(1.3, true),
+                    attack_range: 120.,
+                    piercing: 0.75,
+                    ..Default::default()
+                }),
+            );
+        }
+        EnemyTypesToSpawn::Armored => {
+            let entity = spawn_enemy(
+                Health {
+                    current_health: 10.,
+                    max_health: 10.,
+                    armor: 0.8,
+                },
+                Some(&CombatComponent {
+                    target_type: UnitType::Ally,
+                    attack_type: AttackType::Melee,
+                    damage: 0.2,
+                    time_between_attacks: Timer::from_seconds(2., true),
+                    attack_range: 80.,
+                    piercing: 0.,
+                    ..Default::default()
+                }),
+            );
+            cmd.entity(entity).insert(TankComponent {
+                time_between_taunts: Timer::from_seconds(3., true),
+                target_type: UnitType::Ally,
+            });
+        }
+        EnemyTypesToSpawn::Healer => {
+            let entity = spawn_enemy(
+                Health {
+                    current_health: 2.,
+                    max_health: 2.,
+                    armor: 0.,
+                },
+                None,
+            );
+            cmd.entity(entity).insert(HealerComponent {
+                heal_amount: 0.2,
+                range: 200.,
+                time_between_heals: Timer::from_seconds(2., true),
+                target: None,
+                state: HealingState::Idle,
+                target_type: UnitType::Enemy,
+            });
+        }
+        EnemyTypesToSpawn::Boss1 => {}
+    }
 }
 
 fn enemy_targetting_logic_system(
@@ -78,7 +218,7 @@ fn enemy_spawner_system(
                     max_health: 5.,
                     armor: 0.5,
                 },
-                &CombatComponent {
+                Some(&CombatComponent {
                     target: None,
                     damage: 1.,
                     time_between_attacks: Timer::from_seconds(1., true),
@@ -87,8 +227,8 @@ fn enemy_spawner_system(
                     attack_state: AttackState::NotAttacking,
                     target_type: UnitType::Ally,
                     piercing: 0.,
-                },
-            )
+                }),
+            );
         }
     }
 }
@@ -100,49 +240,55 @@ fn spawn_regular_enemy(
     hp_assets: &mut Assets<hp_material::HpMaterial>,
     mesh_assets: &mut Assets<Mesh>,
     health: &Health,
-    combat_comp: &CombatComponent,
-) {
-    cmd.spawn_bundle(SpriteSheetBundle {
-        texture_atlas: game_assets.basic_enemy_sprite.clone(),
-        ..Default::default()
-    })
-    .insert_bundle(collision::AABBBundle {
-        desc: collision::AABBDescriptor {
-            radius: Vec3::splat(50.),
-        },
-        filter: collision::CollisionFilter {
-            self_layers: collision::CollisionType::WORKER,
-            collisions_mask: collision::CollisionType::WORKER_COLLISIONS,
-        },
-        ..Default::default()
-    })
-    .insert(*health)
-    .insert(combat_comp.clone())
-    .insert(Transform::from_translation(pos))
-    .insert(Velocity(150.))
-    .insert(BasicEnemyLogic)
-    .insert(SpawnResourceNodeOnDeath { chance: 10. })
-    .with_children(|cmd| {
-        cmd.spawn_bundle(MaterialMesh2dBundle {
-            mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(Mesh::from(
-                shape::Quad {
-                    size: Vec2::new(60.0, 10.0),
-                    flip: false,
-                },
-            ))),
-            material: hp_assets.add(hp_material::HpMaterial {
-                color_empty: Color::RED,
-                color_full: Color::ORANGE_RED,
-                hp: 50.0,
-                hp_max: 100.0,
-            }),
-            transform: Transform::from_translation(
-                Vec3::Z * 200.0 + Vec3::Y * 60.0,
-            ),
+    combat_comp: Option<&CombatComponent>,
+) -> Entity {
+    let entity_id = cmd
+        .spawn_bundle(SpriteSheetBundle {
+            texture_atlas: game_assets.basic_enemy_sprite.clone(),
             ..Default::default()
         })
-        .insert(DontSortZ);
-    });
+        .insert_bundle(collision::AABBBundle {
+            desc: collision::AABBDescriptor {
+                radius: Vec3::splat(50.),
+            },
+            filter: collision::CollisionFilter {
+                self_layers: collision::CollisionType::WORKER,
+                collisions_mask: collision::CollisionType::WORKER_COLLISIONS,
+            },
+            ..Default::default()
+        })
+        .insert(*health)
+        .insert(Transform::from_translation(pos))
+        .insert(Velocity(150.))
+        .insert(BasicEnemyLogic)
+        .insert(SpawnResourceNodeOnDeath { chance: 10. })
+        .with_children(|cmd| {
+            cmd.spawn_bundle(MaterialMesh2dBundle {
+                mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(Mesh::from(
+                    shape::Quad {
+                        size: Vec2::new(60.0, 10.0),
+                        flip: false,
+                    },
+                ))),
+                material: hp_assets.add(hp_material::HpMaterial {
+                    color_empty: Color::RED,
+                    color_full: Color::ORANGE_RED,
+                    hp: 50.0,
+                    hp_max: 100.0,
+                }),
+                transform: Transform::from_translation(
+                    Vec3::Z * 200.0 + Vec3::Y * 60.0,
+                ),
+                ..Default::default()
+            })
+            .insert(DontSortZ);
+        })
+        .id();
+
+    if let Some(combat_com) = combat_comp {
+        cmd.entity(entity_id).insert(combat_com.clone());
+    }
+    return entity_id;
 }
 
 fn setup_system(

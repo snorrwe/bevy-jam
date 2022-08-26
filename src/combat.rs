@@ -48,6 +48,21 @@ pub struct CombatComponent {
     pub target_type: UnitType,
 }
 
+impl Default for CombatComponent {
+    fn default() -> Self {
+        CombatComponent {
+            target: None,
+            damage: 1.,
+            piercing: 0.,
+            time_between_attacks: Timer::from_seconds(1., false),
+            attack_range: 100.,
+            attack_type: AttackType::Melee,
+            attack_state: AttackState::NotAttacking,
+            target_type: UnitType::Ally,
+        }
+    }
+}
+
 fn healer_heal_component(
     mut cmd: Commands,
     mut healers: Query<(

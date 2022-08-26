@@ -4,7 +4,7 @@ use crate::{
     collision::AABB,
     easing::Easing,
     game::GameAssets,
-    health::Health,
+    health::{DestroyEntity, Health},
     particles,
     worker_logic::{
         change_class, merge_units, CanEatWorker, UnitClass, UnitSize,
@@ -133,6 +133,7 @@ fn deselect_on_mouse_up(
     mut eater: Query<(&CanEatWorker, &mut Health, &GlobalTransform, Entity)>,
     mut worker_stats: Query<(&mut Transform, &mut UnitClass, &mut UnitSize)>,
     mut time_event: EventWriter<ChangeTimeScaleEvent>,
+    mut destroyer_event: EventWriter<DestroyEntity>,
     game_assets: Res<GameAssets>,
 ) {
     if btn.just_released(MouseButton::Left) {
@@ -187,7 +188,7 @@ fn deselect_on_mouse_up(
                     );
                     if entity_to_eat == e {
                         info!("{:?} ate {:?}", eater_entity, e);
-                        cmd.entity(e).despawn_recursive();
+                        destroyer_event.send(DestroyEntity(e));
                     }
                     return;
                 }
