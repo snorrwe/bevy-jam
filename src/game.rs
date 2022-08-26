@@ -548,10 +548,6 @@ fn setup_game(
         ..Default::default()
     })
     .insert(PlayerController)
-    .insert(EnemySpawner {
-        time_between_spawns: Timer::from_seconds(10., true),
-        distance_from_spawn_point: 400.,
-    })
     .insert(ZOffset { offset: -50. });
 
     spawn_unit_with_class(

@@ -25,7 +25,7 @@ pub struct EnemySpawner {
     pub time_between_spawns: Timer,
     pub distance_from_spawn_point: f32,
 }
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 enum EnemyTypesToSpawn {
     Thrash,
     Ranged,
@@ -34,6 +34,116 @@ enum EnemyTypesToSpawn {
     Armored,
     Healer,
     Boss1,
+}
+
+#[derive(Clone)]
+pub struct Wave {
+    spawn_data: Vec<(Vec<EnemyTypesToSpawn>, Vec3)>,
+    time_to_spawn_after_last_wave: Timer,
+}
+#[derive(Clone)]
+pub struct Level {
+    waves: Vec<Wave>,
+    current_wave_index: usize,
+}
+#[derive(Deref, DerefMut)]
+pub struct LevelManager {
+    current_level: Level,
+}
+
+fn get_test_level() -> Level {
+    return Level {
+        waves: vec![
+            Wave {
+                spawn_data: vec![(
+                    vec![EnemyTypesToSpawn::Thrash, EnemyTypesToSpawn::Thrash],
+                    Vec3::new(0., 300., 0.),
+                )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(3., false),
+            },
+            Wave {
+                spawn_data: vec![
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                        ],
+                        Vec3::new(0., 500., 0.),
+                    ),
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Thrash,
+                        ],
+                        Vec3::new(-300., 0., 0.),
+                    ),
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Thrash,
+                        ],
+                        Vec3::new(300., 0., 0.),
+                    ),
+                ],
+                time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
+            },
+        ],
+        current_wave_index: 0,
+    };
+}
+
+fn level_progresser_system(
+    game_time: Res<GameTime>,
+    mut level_manager: ResMut<LevelManager>,
+    enemy_assets: Res<EnemyAssets>,
+    mut cmd: Commands,
+    enemies: Query<Entity, With<BasicEnemyLogic>>,
+    mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
+    // FIXME: reuse the same mesh?
+    mut mesh_assets: ResMut<Assets<Mesh>>,
+) {
+    //TODO: win level when last wave is spawned && no enemies left!
+    if level_manager.current_level.waves.len()
+        <= level_manager.current_level.current_wave_index
+    {
+        if enemies.iter().len() < 1 {
+            info!("CONGRATS, YOU WON!");
+        }
+        return;
+    } else {
+        let current_wave_index = level_manager.current_level.current_wave_index;
+        let current_wave =
+            &mut level_manager.current_level.waves[current_wave_index];
+        current_wave
+            .time_to_spawn_after_last_wave
+            .tick(game_time.delta());
+        if current_wave.time_to_spawn_after_last_wave.finished() {
+            let mut rng = rand::thread_rng();
+            for enemies in current_wave.spawn_data.iter_mut() {
+                let location = enemies.1;
+                for enemy in enemies.0.iter() {
+                    let spawn_location = location
+                        + Vec3::new(
+                            rng.gen_range(-1.0..=1.0),
+                            rng.gen_range(-1.0..=1.0),
+                            0.,
+                        )
+                        .normalize()
+                            * 60.;
+                    spawn_enemy_based_on_type(
+                        *enemy,
+                        &mut cmd,
+                        &enemy_assets,
+                        spawn_location,
+                        &mut *hp_assets,
+                        &mut *mesh_assets,
+                    );
+                }
+            }
+
+            level_manager.current_level.current_wave_index += 1;
+        }
+    }
 }
 
 fn get_random_enemy() -> EnemyTypesToSpawn {
@@ -319,8 +429,12 @@ fn setup_system(
 impl Plugin for EnemyLogicPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(EnemyAssets::default())
+            .insert_resource(LevelManager {
+                current_level: get_test_level(),
+            })
             .add_startup_system(setup_system)
             .add_system(enemy_spawner_system)
-            .add_system(enemy_targetting_logic_system);
+            .add_system(enemy_targetting_logic_system)
+            .add_system(level_progresser_system);
     }
 }
