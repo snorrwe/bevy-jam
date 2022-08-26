@@ -57,13 +57,21 @@ fn healer_heal_component(
     global_transform: Query<&GlobalTransform>,
     time: Res<GameTime>,
     game_assets: Res<GameAssets>,
-    mut health_changed_event_sender: EventWriter<HealthChangedEvent>,
 ) {
     for (mut tr, mut healer_comp, vel, healer_entity) in healers.iter_mut() {
         if let Some(target_entity) = healer_comp.target {
             if let Ok(health_comp) = healths.get(target_entity) {
                 if health_comp.current_health >= health_comp.max_health {
                     healer_comp.target = None;
+
+                    cmd.entity(healer_entity).insert(RotationAnimation(
+                        Animation::<Quat> {
+                            from: tr.rotation,
+                            to: Quat::from_rotation_z(0.),
+                            timer: Timer::from_seconds(0.2, false),
+                            easing: Easing::QuartOut,
+                        },
+                    ));
                 }
             }
 

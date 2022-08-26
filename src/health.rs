@@ -34,30 +34,31 @@ fn destroyer_system(
     mut cmd: Commands,
     resource_assets: Res<ResourceAssets>,
     mut destroy_event_reader: EventReader<DestroyEntity>,
-    mut combat_comps: Query<(&mut CombatComponent, &Transform, Entity)>,
+    mut combat_comps: Query<(&mut CombatComponent, Entity)>,
     mut healer_comps: Query<(&mut HealerComponent, Entity)>,
     transforms: Query<&GlobalTransform>,
+    local_transforms: Query<&Transform>,
     spawn_on_death: Query<&SpawnResourceNodeOnDeath>,
     mut selected: ResMut<Selected>,
     mut hovered: ResMut<Hovered>,
 ) {
     for event in destroy_event_reader.iter() {
         //Clear out targets
-        for (mut combat_comp, transform, combat_entity) in
-            combat_comps.iter_mut()
-        {
+        for (mut combat_comp, combat_entity) in combat_comps.iter_mut() {
             if let Some(e) = combat_comp.target {
                 if e == event.0 {
                     combat_comp.target = None;
                     combat_comp.attack_state = AttackState::NotAttacking;
-                    cmd.entity(combat_entity).insert(RotationAnimation(
-                        Animation::<Quat> {
-                            from: transform.rotation,
-                            to: Quat::from_rotation_z(0.),
-                            timer: Timer::from_seconds(0.2, false),
-                            easing: Easing::QuartOut,
-                        },
-                    ));
+                    if let Ok(transform) = local_transforms.get(combat_entity) {
+                        cmd.entity(combat_entity).insert(RotationAnimation(
+                            Animation::<Quat> {
+                                from: transform.rotation,
+                                to: Quat::from_rotation_z(0.),
+                                timer: Timer::from_seconds(0.2, false),
+                                easing: Easing::QuartOut,
+                            },
+                        ));
+                    }
                 }
             }
         }
@@ -66,14 +67,16 @@ fn destroyer_system(
             if let Some(e) = healer_comp.target {
                 if e == event.0 {
                     healer_comp.target = None;
-                    cmd.entity(healer_entity).insert(RotationAnimation(
-                        Animation::<Quat> {
-                            from: transform.rotation,
-                            to: Quat::from_rotation_z(0.),
-                            timer: Timer::from_seconds(0.2, false),
-                            easing: Easing::QuartOut,
-                        },
-                    ));
+                    if let Ok(transform) = local_transforms.get(healer_entity) {
+                        cmd.entity(healer_entity).insert(RotationAnimation(
+                            Animation::<Quat> {
+                                from: transform.rotation,
+                                to: Quat::from_rotation_z(0.),
+                                timer: Timer::from_seconds(0.2, false),
+                                easing: Easing::QuartOut,
+                            },
+                        ));
+                    }
                 }
             }
         }
