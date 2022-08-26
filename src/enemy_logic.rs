@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 
 use crate::{
     collision,
-    combat::{AttackState, AttackType, CombatComponent},
+    combat::{AttackType, CombatComponent},
     game::{DontSortZ, UnitType, Velocity},
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
     worker_logic::{
@@ -25,7 +25,7 @@ pub struct EnemySpawner {
     pub time_between_spawns: Timer,
     pub distance_from_spawn_point: f32,
 }
-
+#[derive(Clone)]
 enum EnemyTypesToSpawn {
     Thrash,
     Ranged,
@@ -36,6 +36,16 @@ enum EnemyTypesToSpawn {
     Boss1,
 }
 
+fn get_random_enemy() -> EnemyTypesToSpawn {
+    let enemy_types = [
+        EnemyTypesToSpawn::Thrash,
+        EnemyTypesToSpawn::Ranged,
+        EnemyTypesToSpawn::Sworder,
+    ];
+    let mut rng = rand::thread_rng();
+    return enemy_types[rng.gen_range(0..enemy_types.len())].clone();
+}
+
 fn spawn_enemy_based_on_type(
     enemy_type: EnemyTypesToSpawn,
     mut cmd: &mut Commands,
@@ -44,18 +54,21 @@ fn spawn_enemy_based_on_type(
     hp_assets: &mut Assets<hp_material::HpMaterial>,
     mesh_assets: &mut Assets<Mesh>,
 ) {
-    let mut spawn_enemy =
-        |health: Health, combat_compo: Option<&CombatComponent>| -> Entity {
-            spawn_regular_enemy(
-                &mut cmd,
-                &enemy_assets,
-                pos,
-                &mut *hp_assets,
-                &mut *mesh_assets,
-                &health,
-                combat_compo,
-            )
-        };
+    let mut spawn_enemy = |health: Health,
+                           combat_compo: Option<&CombatComponent>,
+                           color: Color|
+     -> Entity {
+        spawn_regular_enemy(
+            &mut cmd,
+            &enemy_assets,
+            pos,
+            &mut *hp_assets,
+            &mut *mesh_assets,
+            &health,
+            combat_compo,
+            color,
+        )
+    };
 
     match enemy_type {
         EnemyTypesToSpawn::Thrash => {
@@ -74,13 +87,14 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.,
                     ..Default::default()
                 }),
+                Color::WHITE,
             );
         }
         EnemyTypesToSpawn::Ranged => {
             spawn_enemy(
                 Health {
-                    current_health: 2.,
-                    max_health: 2.,
+                    current_health: 5.,
+                    max_health: 5.,
                     armor: 0.,
                 },
                 Some(&CombatComponent {
@@ -92,13 +106,14 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.,
                     ..Default::default()
                 }),
+                Color::GREEN,
             );
         }
         EnemyTypesToSpawn::Sworder => {
             spawn_enemy(
                 Health {
-                    current_health: 2.,
-                    max_health: 2.,
+                    current_health: 7.,
+                    max_health: 7.,
                     armor: 0.,
                 },
                 Some(&CombatComponent {
@@ -110,13 +125,14 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.,
                     ..Default::default()
                 }),
+                Color::RED,
             );
         }
         EnemyTypesToSpawn::Piker => {
             spawn_enemy(
                 Health {
-                    current_health: 2.,
-                    max_health: 2.,
+                    current_health: 7.,
+                    max_health: 7.,
                     armor: 0.,
                 },
                 Some(&CombatComponent {
@@ -128,13 +144,14 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.75,
                     ..Default::default()
                 }),
+                Color::ORANGE,
             );
         }
         EnemyTypesToSpawn::Armored => {
             let entity = spawn_enemy(
                 Health {
-                    current_health: 10.,
-                    max_health: 10.,
+                    current_health: 15.,
+                    max_health: 15.,
                     armor: 0.8,
                 },
                 Some(&CombatComponent {
@@ -146,6 +163,7 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.,
                     ..Default::default()
                 }),
+                Color::BLUE,
             );
             cmd.entity(entity).insert(TankComponent {
                 time_between_taunts: Timer::from_seconds(3., true),
@@ -155,11 +173,12 @@ fn spawn_enemy_based_on_type(
         EnemyTypesToSpawn::Healer => {
             let entity = spawn_enemy(
                 Health {
-                    current_health: 2.,
-                    max_health: 2.,
+                    current_health: 7.,
+                    max_health: 7.,
                     armor: 0.,
                 },
                 None,
+                Color::YELLOW,
             );
             cmd.entity(entity).insert(HealerComponent {
                 heal_amount: 0.2,
@@ -200,7 +219,9 @@ fn enemy_spawner_system(
         enemy_spawner.time_between_spawns.tick(time.delta());
         if enemy_spawner.time_between_spawns.finished() {
             enemy_spawner.time_between_spawns.reset();
-            spawn_regular_enemy(
+
+            spawn_enemy_based_on_type(
+                get_random_enemy(),
                 &mut cmd,
                 &enemy_assets,
                 global_tr.translation()
@@ -213,21 +234,6 @@ fn enemy_spawner_system(
                         * enemy_spawner.distance_from_spawn_point),
                 &mut *hp_assets,
                 &mut *mesh_assets,
-                &Health {
-                    current_health: 5.,
-                    max_health: 5.,
-                    armor: 0.5,
-                },
-                Some(&CombatComponent {
-                    target: None,
-                    damage: 1.,
-                    time_between_attacks: Timer::from_seconds(1., true),
-                    attack_range: 80.,
-                    attack_type: AttackType::Melee,
-                    attack_state: AttackState::NotAttacking,
-                    target_type: UnitType::Ally,
-                    piercing: 0.,
-                }),
             );
         }
     }
@@ -241,10 +247,15 @@ fn spawn_regular_enemy(
     mesh_assets: &mut Assets<Mesh>,
     health: &Health,
     combat_comp: Option<&CombatComponent>,
+    color: Color,
 ) -> Entity {
     let entity_id = cmd
         .spawn_bundle(SpriteSheetBundle {
             texture_atlas: game_assets.basic_enemy_sprite.clone(),
+            sprite: TextureAtlasSprite {
+                color: color,
+                ..Default::default()
+            },
             ..Default::default()
         })
         .insert_bundle(collision::AABBBundle {
