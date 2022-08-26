@@ -35,7 +35,7 @@ fn destroyer_system(
     resource_assets: Res<ResourceAssets>,
     mut destroy_event_reader: EventReader<DestroyEntity>,
     mut combat_comps: Query<(&mut CombatComponent, &Transform, Entity)>,
-    mut healer_comps: Query<&mut HealerComponent>,
+    mut healer_comps: Query<(&mut HealerComponent, Entity)>,
     transforms: Query<&GlobalTransform>,
     spawn_on_death: Query<&SpawnResourceNodeOnDeath>,
     mut selected: ResMut<Selected>,
@@ -62,10 +62,18 @@ fn destroyer_system(
             }
         }
         //TODO: maybe make a single target component, so we dont have to add this for every new component with a target
-        for mut healer_comp in healer_comps.iter_mut() {
+        for (mut healer_comp, healer_entity) in healer_comps.iter_mut() {
             if let Some(e) = healer_comp.target {
                 if e == event.0 {
                     healer_comp.target = None;
+                    cmd.entity(healer_entity).insert(RotationAnimation(
+                        Animation::<Quat> {
+                            from: transform.rotation,
+                            to: Quat::from_rotation_z(0.),
+                            timer: Timer::from_seconds(0.2, false),
+                            easing: Easing::QuartOut,
+                        },
+                    ));
                 }
             }
         }
