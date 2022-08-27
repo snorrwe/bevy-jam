@@ -94,6 +94,12 @@ pub struct SpawnAllies {
     pub time_between_spawns: Timer,
 }
 
+fn check_lose_system(player: Query<Entity, With<PlayerController>>) {
+    if player.iter().len() <= 0 {
+        info!("YOU LOST!");
+    }
+}
+
 fn harvester_carrying_something_system(
     children: Query<&Children>,
     units: Query<Entity, With<UnitFollowPlayer>>,
@@ -140,92 +146,99 @@ fn harvester_logic_system(
     mut destroy_event_writer: EventWriter<DestroyEntity>,
     mut life_soul_amount: ResMut<BloodrockAmount>,
 ) {
-    let player_pos = player_pos_q.single().translation().truncate();
-
-    for (mut harvester, mut tr, mut avoid_others, global_tr, velocity) in
-        harvesters.iter_mut()
-    {
-        if let Some(target) = harvester.target_node {
-            avoid_others.is_enabled = false;
-            if let Ok((node_tr, mut resource_node, _)) = nodes.get_mut(target) {
-                if (node_tr.translation().truncate()
-                    - global_tr.translation().truncate())
-                .length()
-                    < 60.
+    for player_p in player_pos_q.iter() {
+        let player_pos = player_p.translation().truncate();
+        for (mut harvester, mut tr, mut avoid_others, global_tr, velocity) in
+            harvesters.iter_mut()
+        {
+            if let Some(target) = harvester.target_node {
+                avoid_others.is_enabled = false;
+                if let Ok((node_tr, mut resource_node, _)) =
+                    nodes.get_mut(target)
                 {
-                    harvester.harvest_speed.tick(time.delta());
+                    if (node_tr.translation().truncate()
+                        - global_tr.translation().truncate())
+                    .length()
+                        < 60.
+                    {
+                        harvester.harvest_speed.tick(time.delta());
 
-                    if harvester.harvest_speed.finished() {
-                        harvester.harvest_speed.reset();
-                        //Needs this check, since the node will be deleted in the postupdate stage
-                        if resource_node.amount_of_resource > 0 {
-                            resource_node.amount_of_resource -= 1;
-                            harvester.current_carried_resource += 1;
+                        if harvester.harvest_speed.finished() {
+                            harvester.harvest_speed.reset();
+                            //Needs this check, since the node will be deleted in the postupdate stage
+                            if resource_node.amount_of_resource > 0 {
+                                resource_node.amount_of_resource -= 1;
+                                harvester.current_carried_resource += 1;
 
-                            harvester.current_carried_resource = harvester
-                                .current_carried_resource
-                                .clamp(0, harvester.max_carryable_resource);
+                                harvester.current_carried_resource = harvester
+                                    .current_carried_resource
+                                    .clamp(0, harvester.max_carryable_resource);
 
-                            let resource_node_depleted =
-                                resource_node.amount_of_resource == 0;
+                                let resource_node_depleted =
+                                    resource_node.amount_of_resource == 0;
 
-                            if resource_node_depleted {
-                                destroy_event_writer
-                                    .send(DestroyEntity(target));
-                            }
-                            if resource_node_depleted || {
-                                harvester.current_carried_resource
-                                    == harvester.max_carryable_resource
-                            } {
-                                harvester.target_node = None;
+                                if resource_node_depleted {
+                                    destroy_event_writer
+                                        .send(DestroyEntity(target));
+                                }
+                                if resource_node_depleted || {
+                                    harvester.current_carried_resource
+                                        == harvester.max_carryable_resource
+                                } {
+                                    harvester.target_node = None;
+                                }
                             }
                         }
+                    } else {
+                        let dir = (node_tr.translation().truncate()
+                            - global_tr.translation().truncate())
+                        .extend(0.)
+                        .normalize();
+
+                        tr.translation +=
+                            dir * time.delta_seconds() * velocity.0;
+                    }
+                }
+            } else {
+                avoid_others.is_enabled = harvester.current_carried_resource
+                    != harvester.max_carryable_resource;
+
+                if (player_pos - global_tr.translation().truncate()).length()
+                    < 100.
+                {
+                    if harvester.current_carried_resource
+                        == harvester.max_carryable_resource
+                    {
+                        life_soul_amount.0 +=
+                            harvester.current_carried_resource;
+                        info!("Soul amount: {}", life_soul_amount.0);
+                        harvester.current_carried_resource = 0;
                     }
                 } else {
-                    let dir = (node_tr.translation().truncate()
-                        - global_tr.translation().truncate())
-                    .extend(0.)
-                    .normalize();
+                    let dir = (player_pos - global_tr.translation().truncate())
+                        .extend(0.)
+                        .normalize();
 
                     tr.translation += dir * time.delta_seconds() * velocity.0;
                 }
-            }
-        } else {
-            avoid_others.is_enabled = harvester.current_carried_resource
-                != harvester.max_carryable_resource;
 
-            if (player_pos - global_tr.translation().truncate()).length() < 100.
-            {
+                //IF HAND IS NOT FULL - CHECK IF THERE'S A NODE NEARBY
                 if harvester.current_carried_resource
-                    == harvester.max_carryable_resource
+                    != harvester.max_carryable_resource
                 {
-                    life_soul_amount.0 += harvester.current_carried_resource;
-                    info!("Soul amount: {}", life_soul_amount.0);
-                    harvester.current_carried_resource = 0;
-                }
-            } else {
-                let dir = (player_pos - global_tr.translation().truncate())
-                    .extend(0.)
-                    .normalize();
-
-                tr.translation += dir * time.delta_seconds() * velocity.0;
-            }
-
-            //IF HAND IS NOT FULL - CHECK IF THERE'S A NODE NEARBY
-            if harvester.current_carried_resource
-                != harvester.max_carryable_resource
-            {
-                let mut closest_node: (Option<Entity>, f32) = (None, 9999999.);
-                for (node_tr, _, e) in nodes.iter() {
-                    let distance = (global_tr.translation().truncate()
-                        - node_tr.translation().truncate())
-                    .length();
-                    if distance < closest_node.1 {
-                        closest_node.1 = distance;
-                        closest_node.0 = Some(e);
+                    let mut closest_node: (Option<Entity>, f32) =
+                        (None, 9999999.);
+                    for (node_tr, _, e) in nodes.iter() {
+                        let distance = (global_tr.translation().truncate()
+                            - node_tr.translation().truncate())
+                        .length();
+                        if distance < closest_node.1 {
+                            closest_node.1 = distance;
+                            closest_node.0 = Some(e);
+                        }
                     }
+                    harvester.target_node = closest_node.0;
                 }
-                harvester.target_node = closest_node.0;
             }
         }
     }
@@ -286,39 +299,42 @@ fn avoid_others_system(
     time: Res<GameTime>,
 ) {
     let mut change_these_vec: Vec<(Entity, Vec3)> = vec![];
-    let player_tr = player.single();
-    let player_tr_vec2 = player_tr.translation().truncate();
-    for (tr, e, avoider) in avoiders.iter() {
-        if !avoider.is_enabled {
-            continue;
-        }
-        let tr_vec2 = tr.translation().truncate();
+    for player_tr in player.iter() {
+        let player_tr_vec2 = player_tr.translation().truncate();
+        for (tr, e, avoider) in avoiders.iter() {
+            let mut avoid_distance = (70., 100.);
+            if !avoider.is_enabled {
+                avoid_distance = (25., 30.);
+            }
+            let tr_vec2 = tr.translation().truncate();
 
-        for (tr2, e2, _) in avoiders.iter() {
-            let tr2_vec2 = tr2.translation().truncate();
-            if e != e2 && (tr_vec2 - tr2_vec2).length() < 70. {
-                change_these_vec.push((e, (tr_vec2 - tr2_vec2).extend(0.)));
+            for (tr2, e2, _) in avoiders.iter() {
+                let tr2_vec2 = tr2.translation().truncate();
+                if e != e2 && (tr_vec2 - tr2_vec2).length() < avoid_distance.0 {
+                    change_these_vec.push((e, (tr_vec2 - tr2_vec2).extend(0.)));
+                }
+            }
+
+            if (tr_vec2 - player_tr_vec2).length() < avoid_distance.1 {
+                change_these_vec
+                    .push((e, (tr_vec2 - player_tr_vec2).extend(0.)));
             }
         }
 
-        if (tr_vec2 - player_tr_vec2).length() < 100. {
-            change_these_vec.push((e, (tr_vec2 - player_tr_vec2).extend(0.)));
-        }
-    }
-
-    for (e, dir) in change_these_vec.iter() {
-        if let Ok(mut tr) = transforms.get_mut(*e) {
-            let mut direction = *dir;
-            if direction == Vec3::ZERO {
-                let mut rng = rand::thread_rng();
-                direction = Vec3::new(
-                    rng.gen_range(-1.0..=1.0),
-                    rng.gen_range(-1.0..=1.0),
-                    0.,
-                );
+        for (e, dir) in change_these_vec.iter() {
+            if let Ok(mut tr) = transforms.get_mut(*e) {
+                let mut direction = *dir;
+                if direction == Vec3::ZERO {
+                    let mut rng = rand::thread_rng();
+                    direction = Vec3::new(
+                        rng.gen_range(-1.0..=1.0),
+                        rng.gen_range(-1.0..=1.0),
+                        0.,
+                    );
+                }
+                tr.translation +=
+                    direction.normalize() * time.delta_seconds() * 100.;
             }
-            tr.translation +=
-                direction.normalize() * time.delta_seconds() * 100.;
         }
     }
 }
@@ -476,13 +492,13 @@ fn camera_follow_player_system(
     mut camera_q: Query<&mut Transform, With<PlayerCamera>>,
 ) {
     let mut camera_tr = camera_q.single_mut();
-    let player_tr = player_q.single();
-
-    camera_tr.translation = Vec3::new(
-        player_tr.translation().x,
-        player_tr.translation().y,
-        camera_tr.translation.z,
-    );
+    for player_tr in player_q.iter() {
+        camera_tr.translation = Vec3::new(
+            player_tr.translation().x,
+            player_tr.translation().y,
+            camera_tr.translation.z,
+        );
+    }
 }
 
 fn setup_game(
@@ -687,11 +703,36 @@ fn setup_game(
         last_frame_pos: Vec3::splat(0.),
         time_to_stop_moving: Timer::from_seconds(0.3, false),
     })
+    .insert(Health {
+        current_health: 30.,
+        max_health: 30.,
+        armor: 0.,
+    })
     .with_children(|child| {
         child
             .spawn_bundle(SpriteSheetBundle {
                 texture_atlas: game_assets.player_eyes.clone(),
                 transform: Transform::from_translation(Vec3::new(0., 0., 0.1)),
+                ..Default::default()
+            })
+            .insert(DontSortZ);
+        child
+            .spawn_bundle(MaterialMesh2dBundle {
+                mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(Mesh::from(
+                    shape::Quad {
+                        size: Vec2::new(100.0, 13.0),
+                        flip: false,
+                    },
+                ))),
+                material: hp_assets.add(hp_material::HpMaterial {
+                    color_empty: Color::RED,
+                    color_full: Color::GREEN,
+                    hp: 0.0,
+                    hp_max: 0.0,
+                }),
+                transform: Transform::from_translation(
+                    Vec3::Z * 200.0 + Vec3::Y * 100.0,
+                ),
                 ..Default::default()
             })
             .insert(DontSortZ);
@@ -825,7 +866,7 @@ impl Plugin for GamePlugin {
         app.insert_resource(GameAssets::default())
             .insert_resource(ResourceAssets::default())
             .insert_resource(MaxSupplyAmount(10))
-            .insert_resource(BloodrockAmount(100))
+            .insert_resource(BloodrockAmount(20))
             .add_startup_system(setup_game)
             .add_system_to_stage(CoreStage::PostUpdate, z_sorter_system)
             .add_system(player_controll_system)
@@ -837,6 +878,7 @@ impl Plugin for GamePlugin {
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 camera_follow_player_system,
-            );
+            )
+            .add_system(check_lose_system);
     }
 }

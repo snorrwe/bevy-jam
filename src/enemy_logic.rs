@@ -3,7 +3,7 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use crate::{
     collision,
     combat::{AttackType, CombatComponent},
-    game::{DontSortZ, UnitType, Velocity},
+    game::{AvoidOthers, DontSortZ, PlayerController, UnitType, Velocity},
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
     worker_logic::{
         HealerComponent, HealingState, TankComponent, UnitFollowPlayer,
@@ -57,17 +57,58 @@ fn get_test_level() -> Level {
             Wave {
                 spawn_data: vec![(
                     vec![EnemyTypesToSpawn::Thrash, EnemyTypesToSpawn::Thrash],
-                    Vec3::new(0., 300., 0.),
+                    Vec3::new(0., 1300., 0.),
                 )],
                 time_to_spawn_after_last_wave: Timer::from_seconds(3., false),
             },
             Wave {
                 spawn_data: vec![
-                    (vec![EnemyTypesToSpawn::Thrash], Vec3::new(0., 500., 0.)),
-                    (vec![EnemyTypesToSpawn::Ranged], Vec3::new(-300., 0., 0.)),
-                    (vec![EnemyTypesToSpawn::Thrash], Vec3::new(300., 0., 0.)),
+                    (vec![EnemyTypesToSpawn::Thrash], Vec3::new(0., 1200., 0.)),
+                    (
+                        vec![EnemyTypesToSpawn::Ranged],
+                        Vec3::new(-1300., 100., 0.),
+                    ),
+                    (
+                        vec![EnemyTypesToSpawn::Thrash],
+                        Vec3::new(1300., -100., 0.),
+                    ),
                 ],
                 time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
+            },
+            Wave {
+                spawn_data: vec![(
+                    vec![
+                        EnemyTypesToSpawn::Thrash,
+                        EnemyTypesToSpawn::Thrash,
+                        EnemyTypesToSpawn::Thrash,
+                        EnemyTypesToSpawn::Thrash,
+                    ],
+                    Vec3::new(0., 1200., 0.),
+                )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
+            },
+            Wave {
+                spawn_data: vec![(
+                    vec![
+                        EnemyTypesToSpawn::Ranged,
+                        EnemyTypesToSpawn::Thrash,
+                        EnemyTypesToSpawn::Thrash,
+                    ],
+                    Vec3::new(0., 1200., 0.),
+                )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
+            },
+            Wave {
+                spawn_data: vec![(
+                    vec![
+                        EnemyTypesToSpawn::Ranged,
+                        EnemyTypesToSpawn::Armored,
+                        EnemyTypesToSpawn::Thrash,
+                        EnemyTypesToSpawn::Thrash,
+                    ],
+                    Vec3::new(0., 1200., 0.),
+                )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
             },
         ],
         current_wave_index: 0,
@@ -111,7 +152,7 @@ fn level_progresser_system(
                             0.,
                         )
                         .normalize()
-                            * 60.;
+                            * 500.;
                     spawn_enemy_based_on_type(
                         *enemy,
                         &mut cmd,
@@ -286,13 +327,41 @@ fn spawn_enemy_based_on_type(
 }
 
 fn enemy_targetting_logic_system(
-    mut enemies: Query<&mut CombatComponent, With<BasicEnemyLogic>>,
-    allys: Query<Entity, With<UnitFollowPlayer>>,
+    mut enemies: Query<
+        (&mut CombatComponent, &GlobalTransform),
+        With<BasicEnemyLogic>,
+    >,
+    allys: Query<
+        (Entity, &GlobalTransform),
+        (With<UnitFollowPlayer>, Without<BasicEnemyLogic>),
+    >,
+    player: Query<Entity, With<PlayerController>>,
 ) {
     //TODO: find closest ally that the enemy can attack
-    for mut enemy_combat in enemies.iter_mut() {
+    for (mut enemy_combat, enemy_tr) in enemies.iter_mut() {
+        let mut closest_target = (None, 99999.);
+        for (ally_entity, ally_tr) in allys.iter() {
+            if (enemy_tr.translation().truncate()
+                - ally_tr.translation().truncate())
+            .length()
+                < closest_target.1
+            {
+                closest_target = (
+                    Some(ally_entity),
+                    (enemy_tr.translation().truncate()
+                        - ally_tr.translation().truncate())
+                    .length(),
+                );
+            }
+        }
         if enemy_combat.target == None {
-            enemy_combat.target = allys.iter().next();
+            enemy_combat.target = closest_target.0;
+        }
+
+        if enemy_combat.target == None {
+            for p in player.iter() {
+                enemy_combat.target = Some(p);
+            }
         }
     }
 }
@@ -365,6 +434,7 @@ fn spawn_regular_enemy(
         .insert(Velocity(150.))
         .insert(BasicEnemyLogic)
         .insert(SpawnResourceNodeOnDeath { chance: 10. })
+        .insert(AvoidOthers { is_enabled: true })
         .with_children(|cmd| {
             cmd.spawn_bundle(MaterialMesh2dBundle {
                 mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(Mesh::from(

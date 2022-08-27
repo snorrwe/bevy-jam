@@ -410,19 +410,20 @@ fn player_follower_system(
     player: Query<&GlobalTransform, With<PlayerController>>,
     time: Res<GameTime>,
 ) {
-    let player_tr = player.single();
-    for (mut tr, cc) in q_player_followers.iter_mut() {
-        if matches!(cc.target, None) {
-            let direction_vector = player_tr.translation() - tr.translation;
+    for player_tr in player.iter() {
+        for (mut tr, cc) in q_player_followers.iter_mut() {
+            if matches!(cc.target, None) {
+                let direction_vector = player_tr.translation() - tr.translation;
 
-            let direction_vector = direction_vector.truncate();
-            if direction_vector.length() < 400. {
-                continue;
+                let direction_vector = direction_vector.truncate();
+                if direction_vector.length() < 400. {
+                    continue;
+                }
+                let direction_vector = direction_vector.normalize();
+
+                tr.translation +=
+                    direction_vector.extend(0.) * time.delta_seconds() * 150.;
             }
-            let direction_vector = direction_vector.normalize();
-
-            tr.translation +=
-                direction_vector.extend(0.) * time.delta_seconds() * 150.;
         }
     }
 }
