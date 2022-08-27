@@ -24,6 +24,7 @@ pub struct Selectable;
 pub enum SceneState {
     MainMenu,
     InGame,
+    Paused,
 }
 
 pub struct GameTime {

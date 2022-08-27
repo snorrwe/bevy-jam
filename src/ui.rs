@@ -123,6 +123,13 @@ fn setup_in_game_ui(mut cmd: Commands, asset_server: Res<AssetServer>) {
 
 fn destroy_in_game_ui(mut cmd: Commands) {}
 
+fn setup_main_menu(mut cmd: Commands) {}
+fn main_menu_logic(mut cmd: Commands) {}
+fn destroy_main_menu(mut cmd: Commands) {}
+fn pause_menu_logic() {}
+fn pause_time() {}
+fn resume_time() {}
+
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.add_system_set(
@@ -130,13 +137,32 @@ impl Plugin for UIPlugin {
                 .with_system(setup_in_game_ui),
         )
         .add_system_set(
-            SystemSet::on_exit(SceneState::InGame)
-                .with_system(destroy_in_game_ui),
-        )
-        .add_system_set(
             SystemSet::on_update(SceneState::InGame)
                 .with_system(update_bloodrock_text)
                 .with_system(update_supply_text),
+        )
+        .add_system_set(
+            SystemSet::on_enter(SceneState::MainMenu)
+                .with_system(setup_main_menu)
+                .with_system(destroy_in_game_ui),
+        )
+        .add_system_set(
+            SystemSet::on_update(SceneState::MainMenu)
+                .with_system(main_menu_logic),
+        )
+        .add_system_set(
+            SystemSet::on_exit(SceneState::MainMenu)
+                .with_system(destroy_main_menu),
+        )
+        .add_system_set(
+            SystemSet::on_update(SceneState::Paused)
+                .with_system(pause_menu_logic),
+        )
+        .add_system_set(
+            SystemSet::on_enter(SceneState::Paused).with_system(pause_time),
+        )
+        .add_system_set(
+            SystemSet::on_exit(SceneState::Paused).with_system(resume_time),
         );
     }
 }
