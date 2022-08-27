@@ -13,7 +13,7 @@ use crate::{
 use rand::Rng;
 #[derive(Default)]
 pub struct EnemyAssets {
-    basic_enemy_sprite: Handle<TextureAtlas>,
+    enemies: Handle<TextureAtlas>,
 }
 pub struct EnemyLogicPlugin;
 
@@ -148,17 +148,17 @@ fn spawn_enemy_based_on_type(
 ) {
     let mut spawn_enemy = |health: Health,
                            combat_compo: Option<&CombatComponent>,
-                           color: Color|
+                           index: usize|
      -> Entity {
         spawn_regular_enemy(
             &mut cmd,
-            &enemy_assets,
             pos,
             &mut *hp_assets,
             &mut *mesh_assets,
             &health,
             combat_compo,
-            color,
+            &enemy_assets.enemies,
+            index,
         )
     };
 
@@ -179,7 +179,7 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.,
                     ..Default::default()
                 }),
-                Color::WHITE,
+                0,
             );
         }
         EnemyTypesToSpawn::Ranged => {
@@ -198,7 +198,7 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.,
                     ..Default::default()
                 }),
-                Color::GREEN,
+                2,
             );
         }
         EnemyTypesToSpawn::Sworder => {
@@ -217,7 +217,7 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.,
                     ..Default::default()
                 }),
-                Color::RED,
+                1,
             );
         }
         EnemyTypesToSpawn::Piker => {
@@ -236,7 +236,7 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.75,
                     ..Default::default()
                 }),
-                Color::ORANGE,
+                3,
             );
         }
         EnemyTypesToSpawn::Armored => {
@@ -255,7 +255,7 @@ fn spawn_enemy_based_on_type(
                     piercing: 0.,
                     ..Default::default()
                 }),
-                Color::BLUE,
+                4,
             );
             cmd.entity(entity).insert(TankComponent {
                 time_between_taunts: Timer::from_seconds(3., true),
@@ -270,7 +270,7 @@ fn spawn_enemy_based_on_type(
                     armor: 0.,
                 },
                 None,
-                Color::YELLOW,
+                5,
             );
             cmd.entity(entity).insert(HealerComponent {
                 heal_amount: 0.2,
@@ -333,19 +333,19 @@ fn enemy_spawner_system(
 
 fn spawn_regular_enemy(
     cmd: &mut Commands,
-    game_assets: &EnemyAssets,
     pos: Vec3,
     hp_assets: &mut Assets<hp_material::HpMaterial>,
     mesh_assets: &mut Assets<Mesh>,
     health: &Health,
     combat_comp: Option<&CombatComponent>,
-    color: Color,
+    texture_atlas: &Handle<TextureAtlas>,
+    sprite_index: usize,
 ) -> Entity {
     let entity_id = cmd
         .spawn_bundle(SpriteSheetBundle {
-            texture_atlas: game_assets.basic_enemy_sprite.clone(),
+            texture_atlas: texture_atlas.clone(),
             sprite: TextureAtlasSprite {
-                color: color,
+                index: sprite_index,
                 ..Default::default()
             },
             ..Default::default()
@@ -399,13 +399,12 @@ fn setup_system(
     asset_server: Res<AssetServer>,
     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
 ) {
-    enemy_assets.basic_enemy_sprite =
-        texture_atlases.add(TextureAtlas::from_grid(
-            asset_server.load("sprites/enemies/basic_enemy_sprite.png"),
-            Vec2::new(60., 98.),
-            1,
-            1,
-        ));
+    enemy_assets.enemies = texture_atlases.add(TextureAtlas::from_grid(
+        asset_server.load("sprites/enemies/enemies.png"),
+        Vec2::new(122., 115.),
+        6,
+        1,
+    ));
 }
 
 impl Plugin for EnemyLogicPlugin {

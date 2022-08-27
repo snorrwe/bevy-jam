@@ -2,13 +2,12 @@ use crate::{
     animation::{Animation, RotationAnimation},
     collision,
     easing::Easing,
-    enemy_logic::EnemySpawner,
     get_children_recursive,
     health::{hp_material, DestroyEntity, Health},
     interaction::MouseFollow,
     worker_logic::{
         change_class, CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize,
-        WorkerEye, WorkerHead,
+        WorkerHead,
     },
     GameTime, PlayerCamera, Selectable,
 };
@@ -24,6 +23,7 @@ pub struct PlayerController;
 pub struct MovementAnimationController {
     is_moving: bool,
     last_frame_pos: Vec3,
+    time_to_stop_moving: Timer,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -35,12 +35,15 @@ pub enum UnitType {
 #[derive(Default)]
 pub struct GameAssets {
     pub player_sprite: Handle<TextureAtlas>,
+    pub player_open_mouth: Handle<TextureAtlas>,
+    pub player_eyes: Handle<TextureAtlas>,
     pub worker_head: Handle<TextureAtlas>,
     pub worker_head_eating: Handle<TextureAtlas>,
-    pub worker_eye: Handle<TextureAtlas>,
     pub worker_body: Handle<TextureAtlas>,
     pub circle_sprite: Handle<TextureAtlas>,
     pub hp_mesh: Handle<Mesh>,
+    pub background: Handle<TextureAtlas>,
+    pub forests: Handle<TextureAtlas>,
 }
 
 #[derive(Default)]
@@ -235,6 +238,7 @@ fn animate_on_movement_system(
         Entity,
     )>,
     mut cmd: Commands,
+    time: Res<GameTime>,
 ) {
     for (tr, mut mov, e) in movement_animators.iter_mut() {
         if mov.is_moving == false {
@@ -246,16 +250,22 @@ fn animate_on_movement_system(
                     timer: Timer::from_seconds(0.5, true),
                     easing: Easing::PulsateInOutCubic,
                 }));
+                mov.time_to_stop_moving.reset();
             }
         } else {
             if tr.translation == mov.last_frame_pos {
-                mov.is_moving = false;
-                cmd.entity(e).insert(RotationAnimation(Animation::<Quat> {
-                    from: Quat::from_rotation_z(tr.rotation.z),
-                    to: Quat::from_rotation_z(0.),
-                    timer: Timer::from_seconds(0.1, false),
-                    easing: Easing::Linear,
-                }));
+                mov.time_to_stop_moving.tick(time.delta());
+                if mov.time_to_stop_moving.finished() {
+                    mov.is_moving = false;
+                    cmd.entity(e).insert(RotationAnimation(
+                        Animation::<Quat> {
+                            from: Quat::from_rotation_z(tr.rotation.z),
+                            to: Quat::from_rotation_z(0.),
+                            timer: Timer::from_seconds(0.1, false),
+                            easing: Easing::Linear,
+                        },
+                    ));
+                }
             }
         }
 
@@ -489,8 +499,21 @@ fn setup_game(
         flip: false,
     }));
     game_assets.player_sprite = texture_atlases.add(TextureAtlas::from_grid(
-        asset_server.load("sprites/player/blob.png"),
-        Vec2::new(146., 124.),
+        asset_server.load("sprites/player/playerclosedmouth.png"),
+        Vec2::new(180., 172.),
+        1,
+        1,
+    ));
+    game_assets.player_open_mouth =
+        texture_atlases.add(TextureAtlas::from_grid(
+            asset_server.load("sprites/player/playeropenmouth.png"),
+            Vec2::new(180., 172.),
+            1,
+            1,
+        ));
+    game_assets.player_eyes = texture_atlases.add(TextureAtlas::from_grid(
+        asset_server.load("sprites/player/playereyes.png"),
+        Vec2::new(116., 89.),
         1,
         1,
     ));
@@ -502,26 +525,34 @@ fn setup_game(
     ));
     game_assets.worker_head = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/workers/workerhead.png"),
-        Vec2::new(37., 38.),
+        Vec2::new(40., 38.),
         1,
         1,
     ));
-    game_assets.worker_eye = texture_atlases.add(TextureAtlas::from_grid(
-        asset_server.load("sprites/workers/workereyes.png"),
-        Vec2::new(47., 26.),
-        1,
-        1,
-    ));
+
     game_assets.worker_head_eating =
         texture_atlases.add(TextureAtlas::from_grid(
             asset_server.load("sprites/workers/headopenmouth.png"),
-            Vec2::new(71., 52.),
+            Vec2::new(84., 64.),
             1,
             1,
         ));
     game_assets.circle_sprite = texture_atlases.add(TextureAtlas::from_grid(
         asset_server.load("sprites/misc/circle.png"),
         Vec2::new(50., 50.),
+        1,
+        1,
+    ));
+
+    game_assets.background = texture_atlases.add(TextureAtlas::from_grid(
+        asset_server.load("sprites/misc/background.png"),
+        Vec2::new(1000., 1000.),
+        1,
+        1,
+    ));
+    game_assets.forests = texture_atlases.add(TextureAtlas::from_grid(
+        asset_server.load("sprites/misc/forest1.png"),
+        Vec2::new(242., 128.),
         1,
         1,
     ));
@@ -542,13 +573,129 @@ fn setup_game(
     ));
     spawn_bloodrock_node(&mut cmd, &resource_assets, Vec3::new(100., 100., 0.));
 
+    //Make background / borders
+    for c in -2..=2 {
+        for r in -2..=2 {
+            let mut background_tr = Transform::from_scale(Vec3::splat(1.2));
+            background_tr.translation =
+                Vec3::new(c as f32 * 1000. * 1.2, r as f32 * 1000. * 1.2, 0.);
+
+            cmd.spawn_bundle(SpriteSheetBundle {
+                texture_atlas: game_assets.background.clone(),
+                transform: background_tr,
+                ..Default::default()
+            })
+            .insert(ZOffset { offset: 10000. });
+        }
+    }
+
+    //generate trees
+    let mut rng = rand::thread_rng();
+    for c in -5..=5 {
+        for r in 0..=5 {
+            let mut forest_tr: Transform =
+                Transform::from_scale(Vec3::splat(2.2));
+            forest_tr.translation = Vec3::new(
+                c as f32 * 242. * 2.2 + r as f32 * 60.,
+                700. + r as f32 * 100.,
+                0.,
+            );
+
+            cmd.spawn_bundle(SpriteSheetBundle {
+                texture_atlas: game_assets.forests.clone(),
+                transform: forest_tr,
+                sprite: TextureAtlasSprite {
+                    flip_x: rng.gen::<bool>(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .insert(ZOffset { offset: -100. });
+        }
+    }
+    for c in -5..=5 {
+        for r in 0..=5 {
+            let mut forest_tr: Transform =
+                Transform::from_scale(Vec3::splat(2.2));
+            forest_tr.translation = Vec3::new(
+                c as f32 * 242. * 2.2 + r as f32 * 60.,
+                -1000. + r as f32 * 100.,
+                0.,
+            );
+
+            cmd.spawn_bundle(SpriteSheetBundle {
+                texture_atlas: game_assets.forests.clone(),
+                transform: forest_tr,
+                sprite: TextureAtlasSprite {
+                    flip_x: rng.gen::<bool>(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .insert(ZOffset { offset: -100. });
+        }
+    }
+
+    for i in -1..=0 {
+        for r in -4..=6 {
+            let mut forest_tr: Transform =
+                Transform::from_scale(Vec3::splat(2.2));
+            forest_tr.translation =
+                Vec3::new(-1500. + i as f32 * 550., r as f32 * 100., 0.);
+
+            cmd.spawn_bundle(SpriteSheetBundle {
+                texture_atlas: game_assets.forests.clone(),
+                transform: forest_tr,
+                sprite: TextureAtlasSprite {
+                    flip_x: rng.gen::<bool>(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .insert(ZOffset { offset: -100. });
+        }
+    }
+    for i in -1..=0 {
+        for r in -4..=6 {
+            let mut forest_tr: Transform =
+                Transform::from_scale(Vec3::splat(2.2));
+            forest_tr.translation =
+                Vec3::new(1500. + i as f32 * 550., r as f32 * 100., 0.);
+
+            cmd.spawn_bundle(SpriteSheetBundle {
+                texture_atlas: game_assets.forests.clone(),
+                transform: forest_tr,
+                sprite: TextureAtlasSprite {
+                    flip_x: rng.gen::<bool>(),
+                    ..Default::default()
+                },
+                ..Default::default()
+            })
+            .insert(ZOffset { offset: -100. });
+        }
+    }
+
     cmd.spawn_bundle(SpriteSheetBundle {
         texture_atlas: game_assets.player_sprite.clone(),
         transform: Transform::from_scale(Vec3::new(1., 1., 1.)),
         ..Default::default()
     })
     .insert(PlayerController)
-    .insert(ZOffset { offset: -50. });
+    .insert(ZOffset { offset: -50. })
+    .insert(MovementAnimationController {
+        is_moving: false,
+        last_frame_pos: Vec3::splat(0.),
+        time_to_stop_moving: Timer::from_seconds(0.3, false),
+    })
+    .with_children(|child| {
+        child
+            .spawn_bundle(SpriteSheetBundle {
+                texture_atlas: game_assets.player_eyes.clone(),
+                transform: Transform::from_translation(Vec3::new(0., 0., 0.1)),
+                ..Default::default()
+            })
+            .insert(DontSortZ);
+    });
 
     spawn_unit_with_class(
         &mut cmd,
@@ -616,6 +763,7 @@ fn spawn_unit_with_class(
         .insert(MovementAnimationController {
             is_moving: false,
             last_frame_pos: pos,
+            time_to_stop_moving: Timer::from_seconds(0.3, false),
         })
         .insert(Velocity(100.))
         .insert(CanEatWorker {
@@ -638,21 +786,12 @@ fn spawn_unit_with_class(
                 .spawn_bundle(SpriteSheetBundle {
                     texture_atlas: game_assets.worker_head.clone(),
                     transform: Transform::from_translation(Vec3::new(
-                        0., 30., 0.1,
+                        0., 27., 0.1,
                     )),
                     ..Default::default()
                 })
                 .insert(DontSortZ)
-                .insert(WorkerHead)
-                .with_children(|child2| {
-                    child2
-                        .spawn_bundle(SpriteSheetBundle {
-                            texture_atlas: game_assets.worker_eye.clone(),
-                            ..Default::default()
-                        })
-                        .insert(DontSortZ)
-                        .insert(WorkerEye);
-                });
+                .insert(WorkerHead);
             child
                 .spawn_bundle(MaterialMesh2dBundle {
                     mesh: bevy::sprite::Mesh2dHandle(

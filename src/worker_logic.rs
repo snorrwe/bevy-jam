@@ -15,8 +15,6 @@ pub struct WorkerLogicPlugin;
 #[derive(Component)]
 pub struct WorkerHead;
 #[derive(Component)]
-pub struct WorkerEye;
-#[derive(Component)]
 pub struct UnitFollowPlayer;
 
 #[derive(Component)]
@@ -351,7 +349,6 @@ fn change_head_system(
     mut cmd: Commands,
     children: Query<&Children>,
     heads: Query<&Handle<TextureAtlas>, With<WorkerHead>>,
-    mut eyes: Query<&mut TextureAtlasSprite, With<WorkerEye>>,
     can_eats: Query<(Entity, &CanEatWorker)>,
     assets: Res<GameAssets>,
 ) {
@@ -367,14 +364,6 @@ fn change_head_system(
                     if *texture_handle != assets.worker_head {
                         cmd.entity(child).insert(assets.worker_head.clone());
                     }
-                }
-            }
-
-            if let Ok(mut texture_atlas_sprite) = eyes.get_mut(child) {
-                if let Some(_) = eater.entity_to_eat {
-                    texture_atlas_sprite.color = Color::rgba(0., 0., 0., 0.);
-                } else {
-                    texture_atlas_sprite.color = Color::rgba(1., 1., 1., 1.);
                 }
             }
         });
