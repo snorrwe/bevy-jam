@@ -11,6 +11,7 @@ mod particles;
 mod ui;
 mod worker_logic;
 
+use bevy_egui::EguiPlugin;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -90,7 +91,8 @@ fn setup_player_camera(mut cmd: Commands) {
         transform: camera_transform,
         ..Default::default()
     })
-    .insert(PlayerCamera);
+    .insert(PlayerCamera)
+    .insert(DontDestroyBetweenLevels);
 }
 
 fn teardown_player_camera(
@@ -115,6 +117,22 @@ pub fn get_children_recursive(
     }
 }
 
+#[derive(Component)]
+pub struct DontDestroyBetweenLevels;
+
+fn unload_level(
+    mut cmd: Commands,
+    query: Query<Entity, (Without<DontDestroyBetweenLevels>, Without<Parent>)>,
+    mut level_state: ResMut<game::LevelState>,
+    mut level_manager: ResMut<enemy_logic::LevelManager>,
+) {
+    for entity in query.iter() {
+        cmd.entity(entity).despawn_recursive();
+    }
+    *level_state = game::LevelState::NeedToSpawnStuff;
+    level_manager.current_level = enemy_logic::get_test_level();
+}
+
 pub fn app() -> App {
     let mut app = App::new();
     app.insert_resource(WindowDescriptor {
@@ -134,10 +152,11 @@ pub fn app() -> App {
     .add_plugin(animation::AnimationsPlugin)
     .add_plugin(particles::ParticlePlugin)
     .add_plugin(ui::UIPlugin)
-    .add_state(SceneState::InGame) // FIXME: main menu
+    .add_plugin(EguiPlugin)
+    .add_state(SceneState::MainMenu) // FIXME: main menu
+    .add_startup_system(setup_player_camera)
     .add_system_set(
-        SystemSet::on_enter(SceneState::InGame)
-            .with_system(setup_player_camera),
+        SystemSet::on_enter(SceneState::MainMenu).with_system(unload_level),
     )
     .add_system_set(
         SystemSet::on_update(SceneState::InGame).with_system(game_time_update),

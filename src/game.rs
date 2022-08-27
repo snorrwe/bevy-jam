@@ -9,7 +9,7 @@ use crate::{
         change_class, CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize,
         WorkerHead,
     },
-    GameTime, PlayerCamera, Selectable,
+    DontDestroyBetweenLevels, GameTime, PlayerCamera, SceneState, Selectable,
 };
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
@@ -198,6 +198,8 @@ fn harvester_logic_system(
                         tr.translation +=
                             dir * time.delta_seconds() * velocity.0;
                     }
+                } else {
+                    harvester.target_node = None;
                 }
             } else {
                 avoid_others.is_enabled = harvester.current_carried_resource
@@ -418,6 +420,28 @@ fn handle_keyboard_movement(
     }
 }
 
+fn handle_pausing_system(
+    inputs: Res<Input<KeyCode>>,
+    mut app_state: ResMut<State<SceneState>>,
+) {
+    for key in inputs.get_just_pressed() {
+        match key {
+            KeyCode::Escape => match app_state.current() {
+                SceneState::InGame => {
+                    app_state.push(SceneState::Paused).unwrap_or_default();
+                }
+                SceneState::Paused => {
+                    app_state
+                        .pop()
+                        .expect("Couldnt unpause, because we failed to pop!");
+                }
+                _ => {}
+            },
+            _ => {}
+        }
+    }
+}
+
 fn player_controll_system(
     mut q_player: Query<&mut Transform, With<PlayerController>>,
     workers: Query<Entity, With<UnitFollowPlayer>>,
@@ -491,13 +515,14 @@ fn camera_follow_player_system(
     player_q: Query<&GlobalTransform, With<PlayerController>>,
     mut camera_q: Query<&mut Transform, With<PlayerCamera>>,
 ) {
-    let mut camera_tr = camera_q.single_mut();
-    for player_tr in player_q.iter() {
-        camera_tr.translation = Vec3::new(
-            player_tr.translation().x,
-            player_tr.translation().y,
-            camera_tr.translation.z,
-        );
+    for mut camera_tr in camera_q.iter_mut() {
+        for player_tr in player_q.iter() {
+            camera_tr.translation = Vec3::new(
+                player_tr.translation().x,
+                player_tr.translation().y,
+                camera_tr.translation.z,
+            );
+        }
     }
 }
 
@@ -508,7 +533,6 @@ fn setup_game(
     mut game_assets: ResMut<GameAssets>,
     mut resource_assets: ResMut<ResourceAssets>,
     mut mesh_assets: ResMut<Assets<Mesh>>,
-    mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
 ) {
     game_assets.hp_mesh = mesh_assets.add(Mesh::from(shape::Quad {
         size: Vec2::new(50.0, 10.0),
@@ -587,7 +611,6 @@ fn setup_game(
         1,
         1,
     ));
-    spawn_bloodrock_node(&mut cmd, &resource_assets, Vec3::new(100., 100., 0.));
 
     //Make background / borders
     for c in -2..=2 {
@@ -601,7 +624,8 @@ fn setup_game(
                 transform: background_tr,
                 ..Default::default()
             })
-            .insert(ZOffset { offset: 10000. });
+            .insert(ZOffset { offset: 10000. })
+            .insert(DontDestroyBetweenLevels);
         }
     }
 
@@ -626,7 +650,8 @@ fn setup_game(
                 },
                 ..Default::default()
             })
-            .insert(ZOffset { offset: -100. });
+            .insert(ZOffset { offset: -100. })
+            .insert(DontDestroyBetweenLevels);
         }
     }
     for c in -5..=5 {
@@ -648,7 +673,8 @@ fn setup_game(
                 },
                 ..Default::default()
             })
-            .insert(ZOffset { offset: -100. });
+            .insert(ZOffset { offset: -100. })
+            .insert(DontDestroyBetweenLevels);
         }
     }
 
@@ -668,7 +694,8 @@ fn setup_game(
                 },
                 ..Default::default()
             })
-            .insert(ZOffset { offset: -100. });
+            .insert(ZOffset { offset: -100. })
+            .insert(DontDestroyBetweenLevels);
         }
     }
     for i in -1..=0 {
@@ -687,73 +714,10 @@ fn setup_game(
                 },
                 ..Default::default()
             })
-            .insert(ZOffset { offset: -100. });
+            .insert(ZOffset { offset: -100. })
+            .insert(DontDestroyBetweenLevels);
         }
     }
-
-    cmd.spawn_bundle(SpriteSheetBundle {
-        texture_atlas: game_assets.player_sprite.clone(),
-        transform: Transform::from_scale(Vec3::new(1., 1., 1.)),
-        ..Default::default()
-    })
-    .insert(PlayerController)
-    .insert(ZOffset { offset: -50. })
-    .insert(MovementAnimationController {
-        is_moving: false,
-        last_frame_pos: Vec3::splat(0.),
-        time_to_stop_moving: Timer::from_seconds(0.3, false),
-    })
-    .insert(Health {
-        current_health: 30.,
-        max_health: 30.,
-        armor: 0.,
-    })
-    .with_children(|child| {
-        child
-            .spawn_bundle(SpriteSheetBundle {
-                texture_atlas: game_assets.player_eyes.clone(),
-                transform: Transform::from_translation(Vec3::new(0., 0., 0.1)),
-                ..Default::default()
-            })
-            .insert(DontSortZ);
-        child
-            .spawn_bundle(MaterialMesh2dBundle {
-                mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(Mesh::from(
-                    shape::Quad {
-                        size: Vec2::new(100.0, 13.0),
-                        flip: false,
-                    },
-                ))),
-                material: hp_assets.add(hp_material::HpMaterial {
-                    color_empty: Color::RED,
-                    color_full: Color::GREEN,
-                    hp: 0.0,
-                    hp_max: 0.0,
-                }),
-                transform: Transform::from_translation(
-                    Vec3::Z * 200.0 + Vec3::Y * 100.0,
-                ),
-                ..Default::default()
-            })
-            .insert(DontSortZ);
-    });
-
-    spawn_unit_with_class(
-        &mut cmd,
-        &game_assets,
-        &resource_assets,
-        Vec3::new(180., 10., 0.),
-        UnitClass::Sworder,
-        &mut *hp_assets,
-    );
-    spawn_unit_with_class(
-        &mut cmd,
-        &game_assets,
-        &resource_assets,
-        Vec3::new(0., 200., 0.),
-        UnitClass::Worker,
-        &mut *hp_assets,
-    );
 }
 
 pub fn spawn_bloodrock_node(
@@ -861,24 +825,137 @@ fn spawn_unit_with_class(
     cmd.entity(entity_id).insert(health_comp);
 }
 
+pub enum LevelState {
+    SpawnedStuff,
+    NeedToSpawnStuff,
+}
+
+fn spawn_stuff(
+    mut cmd: Commands,
+    game_assets: Res<GameAssets>,
+    resource_assets: Res<ResourceAssets>,
+    mut level_state: ResMut<LevelState>,
+    mut mesh_assets: ResMut<Assets<Mesh>>,
+    mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
+) {
+    if matches!(*level_state, LevelState::NeedToSpawnStuff) {
+        *level_state = LevelState::SpawnedStuff;
+
+        spawn_bloodrock_node(
+            &mut cmd,
+            &resource_assets,
+            Vec3::new(100., 100., 0.),
+        );
+        cmd.spawn_bundle(SpriteSheetBundle {
+            texture_atlas: game_assets.player_sprite.clone(),
+            transform: Transform::from_scale(Vec3::new(1., 1., 1.)),
+            ..Default::default()
+        })
+        .insert(PlayerController)
+        .insert(ZOffset { offset: -50. })
+        .insert(MovementAnimationController {
+            is_moving: false,
+            last_frame_pos: Vec3::splat(0.),
+            time_to_stop_moving: Timer::from_seconds(0.3, false),
+        })
+        .insert(Health {
+            current_health: 30.,
+            max_health: 30.,
+            armor: 0.,
+        })
+        .with_children(|child| {
+            child
+                .spawn_bundle(SpriteSheetBundle {
+                    texture_atlas: game_assets.player_eyes.clone(),
+                    transform: Transform::from_translation(Vec3::new(
+                        0., 0., 0.1,
+                    )),
+                    ..Default::default()
+                })
+                .insert(DontSortZ);
+            child
+                .spawn_bundle(MaterialMesh2dBundle {
+                    mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(
+                        Mesh::from(shape::Quad {
+                            size: Vec2::new(100.0, 13.0),
+                            flip: false,
+                        }),
+                    )),
+                    material: hp_assets.add(hp_material::HpMaterial {
+                        color_empty: Color::RED,
+                        color_full: Color::GREEN,
+                        hp: 0.0,
+                        hp_max: 0.0,
+                    }),
+                    transform: Transform::from_translation(
+                        Vec3::Z * 200.0 + Vec3::Y * 100.0,
+                    ),
+                    ..Default::default()
+                })
+                .insert(DontSortZ);
+        });
+
+        spawn_unit_with_class(
+            &mut cmd,
+            &game_assets,
+            &resource_assets,
+            Vec3::new(180., 10., 0.),
+            UnitClass::Sworder,
+            &mut *hp_assets,
+        );
+        spawn_unit_with_class(
+            &mut cmd,
+            &game_assets,
+            &resource_assets,
+            Vec3::new(0., 200., 0.),
+            UnitClass::Worker,
+            &mut *hp_assets,
+        );
+    }
+}
+
+fn freeze_time(mut game_time: ResMut<GameTime>) {
+    game_time.time_scale = 0.;
+}
+
+fn resume_time(mut game_time: ResMut<GameTime>) {
+    game_time.time_scale = 1.;
+}
+
 impl Plugin for GamePlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(GameAssets::default())
+            .insert_resource(LevelState::NeedToSpawnStuff)
             .insert_resource(ResourceAssets::default())
             .insert_resource(MaxSupplyAmount(10))
             .insert_resource(BloodrockAmount(20))
             .add_startup_system(setup_game)
             .add_system_to_stage(CoreStage::PostUpdate, z_sorter_system)
-            .add_system(player_controll_system)
-            .add_system(spawn_workers_system)
-            .add_system(avoid_others_system)
-            .add_system(animate_on_movement_system)
-            .add_system(harvester_logic_system)
-            .add_system(harvester_carrying_something_system)
+            .add_system(handle_pausing_system)
+            .add_system_set(
+                SystemSet::on_update(SceneState::InGame)
+                    .with_system(player_controll_system)
+                    .with_system(spawn_workers_system)
+                    .with_system(avoid_others_system)
+                    .with_system(animate_on_movement_system)
+                    .with_system(harvester_logic_system)
+                    .with_system(harvester_carrying_something_system)
+                    .with_system(check_lose_system),
+            )
+            .add_system_set(
+                SystemSet::on_enter(SceneState::InGame)
+                    .with_system(spawn_stuff),
+            )
+            .add_system_set(
+                SystemSet::on_enter(SceneState::Paused)
+                    .with_system(freeze_time),
+            )
+            .add_system_set(
+                SystemSet::on_exit(SceneState::Paused).with_system(resume_time),
+            )
             .add_system_to_stage(
                 CoreStage::PostUpdate,
                 camera_follow_player_system,
-            )
-            .add_system(check_lose_system);
+            );
     }
 }

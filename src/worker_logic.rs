@@ -7,7 +7,7 @@ use crate::{
     get_children_recursive,
     health::Health,
     interaction::{MouseFollow, Selected},
-    GameTime,
+    GameTime, SceneState,
 };
 
 pub struct WorkerLogicPlugin;
@@ -430,11 +430,14 @@ fn player_follower_system(
 
 impl Plugin for WorkerLogicPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(player_follower_system)
-            .add_system(eat_other_worker_system)
-            .add_system(change_head_system)
-            .add_system(ally_targetting_logic_system)
-            .add_system(set_stats_based_on_class_and_size_system)
-            .add_system(change_sprite_based_on_class_system);
+        app.add_system_set(
+            SystemSet::on_update(SceneState::InGame)
+                .with_system(player_follower_system)
+                .with_system(eat_other_worker_system)
+                .with_system(change_head_system)
+                .with_system(ally_targetting_logic_system)
+                .with_system(set_stats_based_on_class_and_size_system)
+                .with_system(change_sprite_based_on_class_system),
+        );
     }
 }

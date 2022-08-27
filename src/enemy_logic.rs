@@ -8,7 +8,7 @@ use crate::{
     worker_logic::{
         HealerComponent, HealingState, TankComponent, UnitFollowPlayer,
     },
-    GameTime,
+    GameTime, SceneState,
 };
 use rand::Rng;
 #[derive(Default)]
@@ -48,10 +48,10 @@ pub struct Level {
 }
 #[derive(Deref, DerefMut)]
 pub struct LevelManager {
-    current_level: Level,
+    pub current_level: Level,
 }
 
-fn get_test_level() -> Level {
+pub fn get_test_level() -> Level {
     return Level {
         waves: vec![
             Wave {
@@ -484,8 +484,11 @@ impl Plugin for EnemyLogicPlugin {
                 current_level: get_test_level(),
             })
             .add_startup_system(setup_system)
-            .add_system(enemy_spawner_system)
-            .add_system(enemy_targetting_logic_system)
-            .add_system(level_progresser_system);
+            .add_system_set(
+                SystemSet::on_update(SceneState::InGame)
+                    .with_system(enemy_spawner_system)
+                    .with_system(enemy_targetting_logic_system)
+                    .with_system(level_progresser_system),
+            );
     }
 }
