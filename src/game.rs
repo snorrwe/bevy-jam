@@ -1,5 +1,6 @@
 use crate::{
     animation::{Animation, RotationAnimation},
+    audio::{AudioAssets, PlayAudioEventPositional},
     collision,
     easing::Easing,
     get_children_recursive,
@@ -22,9 +23,9 @@ pub struct PlayerController;
 
 #[derive(Default, Component)]
 pub struct MovementAnimationController {
-    is_moving: bool,
-    last_frame_pos: Vec3,
-    time_to_stop_moving: Timer,
+    pub is_moving: bool,
+    pub last_frame_pos: Vec3,
+    pub time_to_stop_moving: Timer,
 }
 
 #[derive(Component, Clone, Copy)]
@@ -457,6 +458,8 @@ fn player_controll_system(
     mut bloodrock: ResMut<BloodrockAmount>,
     max_supply: Res<MaxSupplyAmount>,
     mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
+    audio_assets: Res<AudioAssets>,
+    mut send_audio_event: EventWriter<PlayAudioEventPositional>,
 ) {
     let delta_time = time.delta_seconds();
     let mut delta_movement = Vec2::new(0., 0.);
@@ -472,6 +475,10 @@ fn player_controll_system(
             && workers.iter().len() < max_supply.0
             && bloodrock.0 >= 10
         {
+            send_audio_event.send(PlayAudioEventPositional {
+                sound: audio_assets.spawning_unit.clone(),
+                position: tr.translation,
+            });
             bloodrock.0 -= 10;
             let mut rng = rand::thread_rng();
             let index = rng.gen_range(0..=2);

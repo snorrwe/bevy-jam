@@ -9,7 +9,6 @@ pub struct Options {
 
 #[derive(Default, Clone)]
 pub struct PlayAudioEventPositional {
-    pub id: u32,
     pub position: Vec3,
     pub sound: Handle<AudioSource>,
 }
@@ -86,21 +85,19 @@ pub fn setup_system(
     audio_assets.mining = asset_server.load("audio/mininglooped.mp3");
     audio_assets.sword_attack = asset_server.load("audio/swordattack.mp3");
     audio_assets.spawning_unit = asset_server.load("audio/unitpoppingout.mp3");
-
     *music_handler = MusicHandle(
         audio
             .play(audio_assets.soundtrack.clone())
             .looped()
             .handle(),
     );
-    info!("Playing sound!");
 }
 
 impl Plugin for AudioPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(Options {
-            master_volume: 1.,
-            music_volume: 1.,
+            master_volume: 50.,
+            music_volume: 50.,
         })
         .insert_resource(AudioAssets::default())
         .insert_resource(MusicHandle::default())

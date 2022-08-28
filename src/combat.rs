@@ -1,5 +1,6 @@
 use crate::{
     animation::{Animation, RotationAnimation},
+    audio::{AudioAssets, PlayAudioEventPositional},
     easing::Easing,
     enemy_logic::BasicEnemyLogic,
     game::{AvoidOthers, GameAssets, UnitType, Velocity},
@@ -77,6 +78,8 @@ fn healer_heal_component(
     global_transform: Query<&GlobalTransform>,
     time: Res<GameTime>,
     game_assets: Res<GameAssets>,
+    audio_assets: Res<AudioAssets>,
+    mut send_audio_event: EventWriter<PlayAudioEventPositional>,
 ) {
     for (mut tr, mut healer_comp, vel, healer_entity) in healers.iter_mut() {
         if let Some(target_entity) = healer_comp.target {
@@ -117,6 +120,14 @@ fn healer_heal_component(
                                         timer: Timer::from_seconds(0.2, true),
                                         easing: Easing::PulsateInOutCubic,
                                     }),
+                                );
+                                send_audio_event.send(
+                                    PlayAudioEventPositional {
+                                        sound: audio_assets
+                                            .healer_casting
+                                            .clone(),
+                                        position: tr.translation,
+                                    },
                                 );
                             }
                         }
@@ -289,6 +300,8 @@ fn combat_system(
     mut health_changed_event_writer: EventWriter<HealthChangedEvent>,
     game_assets: Res<GameAssets>,
     mut cmd: Commands,
+    audio_assets: Res<AudioAssets>,
+    mut send_audio_event: EventWriter<PlayAudioEventPositional>,
 ) {
     for (mut combat_comp, mut tr, vel, e) in combatant.iter_mut() {
         if let Ok(mut avoid_other) = avoid_others.get_mut(e) {
@@ -370,6 +383,12 @@ fn combat_system(
                                     target: target,
                                 })
                                 .insert(proj_transform);
+                                send_audio_event.send(
+                                    PlayAudioEventPositional {
+                                        sound: audio_assets.bow_release.clone(),
+                                        position: tr.translation,
+                                    },
+                                );
                             }
                             AttackType::Melee => {
                                 health_changed_event_writer.send(
@@ -377,6 +396,15 @@ fn combat_system(
                                         amount: -combat_comp.damage,
                                         piercing: combat_comp.piercing,
                                         target: target,
+                                    },
+                                );
+
+                                send_audio_event.send(
+                                    PlayAudioEventPositional {
+                                        sound: audio_assets
+                                            .sword_attack
+                                            .clone(),
+                                        position: tr.translation,
                                     },
                                 );
                             }

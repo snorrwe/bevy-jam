@@ -3,7 +3,10 @@ use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use crate::{
     collision,
     combat::{AttackType, CombatComponent},
-    game::{AvoidOthers, DontSortZ, PlayerController, UnitType, Velocity},
+    game::{
+        AvoidOthers, DontSortZ, MovementAnimationController, PlayerController,
+        UnitType, Velocity,
+    },
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
     ui::{EndGameManager, EndGameState},
     worker_logic::{
@@ -493,8 +496,13 @@ fn spawn_regular_enemy(
         .insert(Transform::from_translation(pos))
         .insert(Velocity(150.))
         .insert(BasicEnemyLogic)
-        .insert(SpawnResourceNodeOnDeath { chance: 10. })
+        .insert(SpawnResourceNodeOnDeath { chance: 0. })
         .insert(AvoidOthers { is_enabled: true })
+        .insert(MovementAnimationController {
+            is_moving: false,
+            last_frame_pos: pos,
+            time_to_stop_moving: Timer::from_seconds(0.3, false),
+        })
         .with_children(|cmd| {
             cmd.spawn_bundle(MaterialMesh2dBundle {
                 mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(Mesh::from(

@@ -2,9 +2,10 @@ pub mod hp_material;
 
 use crate::{
     animation::{Animation, RotationAnimation},
+    audio::{AudioAssets, PlayAudioEventPositional},
     combat::{AttackState, CombatComponent},
     easing::Easing,
-    game::{spawn_bloodrock_node, GameAssets, ResourceAssets},
+    game::{spawn_bloodrock_node, BloodrockAmount, GameAssets, ResourceAssets},
     interaction::{Hovered, Selected},
     particles,
     worker_logic::HealerComponent,
@@ -43,6 +44,7 @@ fn destroyer_system(
     spawn_on_death: Query<&SpawnResourceNodeOnDeath>,
     mut selected: ResMut<Selected>,
     mut hovered: ResMut<Hovered>,
+    mut amount_of_bloodrock: ResMut<BloodrockAmount>,
 ) {
     for event in destroy_event_reader.iter() {
         //Clear out targets
@@ -84,6 +86,7 @@ fn destroyer_system(
         }
         if let Ok(e) = transforms.get(event.0) {
             if let Ok(spawn) = spawn_on_death.get(event.0) {
+                amount_of_bloodrock.0 += 1;
                 let mut rng = rand::thread_rng();
                 if rng.gen_range(0.0..100.0) < spawn.chance {
                     spawn_bloodrock_node(
@@ -114,6 +117,8 @@ fn health_change_system(
     mut health_query: Query<(&mut Health, Entity, &GlobalTransform)>,
     mut commands: Commands,
     game_assets: Res<GameAssets>,
+    audio_assets: Res<AudioAssets>,
+    mut send_audio_event: EventWriter<PlayAudioEventPositional>,
 ) {
     for event in health_changed_events.iter() {
         if let Ok((mut health, _, tr)) = health_query.get_mut(event.target) {
@@ -127,12 +132,20 @@ fn health_change_system(
                     game_assets.circle_sprite.clone(),
                     tr.translation(),
                 );
+                send_audio_event.send(PlayAudioEventPositional {
+                    sound: audio_assets.getting_damaged.clone(),
+                    position: tr.translation(),
+                });
             } else {
                 spawn_healing_particles(
                     &mut commands,
                     game_assets.circle_sprite.clone(),
                     tr.translation(),
                 );
+                send_audio_event.send(PlayAudioEventPositional {
+                    sound: audio_assets.getting_healed.clone(),
+                    position: tr.translation(),
+                });
             }
             health.current_health += amount;
             health.current_health =

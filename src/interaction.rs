@@ -1,6 +1,7 @@
 use bevy::{math::Vec3A, prelude::*, render::camera::*};
 
 use crate::{
+    audio::{AudioAssets, PlayAudioEventPositional},
     collision::AABB,
     easing::Easing,
     game::GameAssets,
@@ -137,6 +138,8 @@ fn deselect_on_mouse_up(
     mut destroyer_event: EventWriter<DestroyEntity>,
     mut heal_event: EventWriter<HealthChangedEvent>,
     game_assets: Res<GameAssets>,
+    audio_assets: Res<AudioAssets>,
+    mut send_audio_event: EventWriter<PlayAudioEventPositional>,
 ) {
     if btn.just_released(MouseButton::Left) {
         if let Some(e) = selected.0.take() {
@@ -167,6 +170,10 @@ fn deselect_on_mouse_up(
                                 (*eater_class, *eater_size),
                                 (prey_class, prey_unit_size),
                             );
+                            send_audio_event.send(PlayAudioEventPositional {
+                                sound: audio_assets.eating.clone(),
+                                position: tr.translation,
+                            });
                             if *eater_class != new_class {
                                 *eater_class = new_class;
                                 change_class(
