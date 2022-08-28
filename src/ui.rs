@@ -1,7 +1,9 @@
 use crate::{
+    easing::Easing,
     game::{BloodrockAmount, MaxSupplyAmount},
+    lerp::Lerp,
     worker_logic::UnitFollowPlayer,
-    SceneState,
+    DontDestroyBetweenLevels, GameTime, SceneState,
 };
 use bevy::prelude::*;
 pub struct UIPlugin;
@@ -67,6 +69,33 @@ fn setup_in_game_ui(
             })
             .insert(MainInGameNode)
             .with_children(|child| {
+                child
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                right: Val::Auto,
+                                left: Val::Px(0.),
+                                top: Val::Px(0.),
+                                bottom: Val::Auto,
+                            },
+
+                            size: Size::new(
+                                Val::Percent(100.0),
+                                Val::Percent(100.0),
+                            ),
+                            ..Default::default()
+                        },
+                        color: UiColor(Color::BLACK),
+                        ..Default::default()
+                    })
+                    .insert(Fade {
+                        start_color: Color::BLACK,
+                        end_color: Color::rgba(0., 0., 0., 0.),
+                        time_to_fade: Timer::from_seconds(3., false),
+                        easing: Easing::QuartOut,
+                    });
+
                 child
                     .spawn_bundle(NodeBundle {
                         style: Style {
@@ -147,7 +176,6 @@ fn destroy_in_game_ui(
         cmd.entity(e).despawn_recursive();
     }
 }
-fn setup_main_menu(mut cmd: Commands) {}
 
 fn main_menu_logic(
     mut egui_ctx: ResMut<EguiContext>,
@@ -166,7 +194,7 @@ fn main_menu_logic(
         .resizable(false)
         .title_bar(false)
         .frame(egui::Frame {
-            fill: egui::Color32::from_rgb(41, 50, 65),
+            fill: egui::Color32::from_rgb(115, 99, 114),
             shadow: egui::epaint::Shadow::small_light(),
             rounding: egui::Rounding::from(8.),
             ..Default::default()
@@ -174,20 +202,21 @@ fn main_menu_logic(
         .default_pos(egui::Pos2 { x: -500., y: -500. })
         .anchor(egui::Align2::CENTER_TOP, egui::Vec2 { x: 0., y: 300. })
         .show(egui_ctx.ctx_mut(), |ui| {
-            ui.visuals_mut().widgets = egui::style::Widgets {
-                inactive: egui::style::WidgetVisuals {
-                    bg_fill: egui::Color32::from_rgb(61, 90, 128),
-                    bg_stroke: egui::Stroke {
-                        width: 1.,
-                        color: egui::Color32::from_rgb(100, 140, 160),
-                    },
-                    rounding: egui::Rounding::from(8.),
-                    fg_stroke: egui::Stroke {
-                        width: 2.,
-                        color: egui::Color32::WHITE,
-                    },
-                    expansion: 0.,
+            let widget_visuals = egui::style::WidgetVisuals {
+                bg_fill: egui::Color32::from_rgb(170, 192, 170),
+                bg_stroke: egui::Stroke {
+                    width: 1.,
+                    color: egui::Color32::from_rgb(220, 238, 209),
                 },
+                rounding: egui::Rounding::from(8.),
+                fg_stroke: egui::Stroke {
+                    width: 5.,
+                    color: egui::Color32::BLACK,
+                },
+                expansion: 0.,
+            };
+            ui.visuals_mut().widgets = egui::style::Widgets {
+                inactive: widget_visuals,
                 ..Default::default()
             };
 
@@ -197,7 +226,7 @@ fn main_menu_logic(
                         ui.add_space(20.);
                         if ui
                             .add_sized(
-                                [200.0, 50.0],
+                                [220.0, 80.0],
                                 egui::Button::new("Start game"),
                             )
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
@@ -211,7 +240,7 @@ fn main_menu_logic(
                         ui.add_space(50.);
                         if ui
                             .add_sized(
-                                [200.0, 50.0],
+                                [220.0, 80.0],
                                 egui::Button::new("Options"),
                             )
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
@@ -223,30 +252,145 @@ fn main_menu_logic(
                         ui.separator();
                         ui.add_space(20.);
                         if ui
-                            .add_sized([200.0, 50.0], egui::Button::new("Quit"))
+                            .add_sized([220.0, 80.0], egui::Button::new("Quit"))
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
                             .clicked()
                         {
                             exit.send(AppExit);
                         }
+                        ui.add_space(20.);
                     });
                 }
                 _ => {}
             }
         });
 }
-fn destroy_main_menu(mut cmd: Commands) {}
+
+#[derive(Component)]
+pub struct MainMenuNode;
+fn setup_main_menu(
+    mut cmd: Commands,
+    root_node: Query<Entity, With<RootNode>>,
+) {
+    for node in root_node.iter() {
+        cmd.entity(node).with_children(|child| {
+            child
+                .spawn_bundle(NodeBundle {
+                    style: Style {
+                        position_type: PositionType::Absolute,
+                        size: Size::new(
+                            Val::Percent(100.0),
+                            Val::Percent(100.0),
+                        ),
+                        ..Default::default()
+                    },
+                    color: UiColor(Color::BLACK),
+                    ..Default::default()
+                })
+                .insert(MainMenuNode);
+        });
+    }
+}
+
+#[derive(Component)]
+pub struct Fade {
+    start_color: Color,
+    end_color: Color,
+    time_to_fade: Timer,
+    easing: Easing,
+}
+
+fn fader_system(
+    mut faders: Query<(&mut Fade, &mut UiColor)>,
+    time: Res<GameTime>,
+) {
+    for (mut fade_comp, mut color) in faders.iter_mut() {
+        fade_comp.time_to_fade.tick(time.delta());
+        color.0 = fade_comp.start_color.lerp(
+            &fade_comp.end_color,
+            fade_comp
+                .easing
+                .get_easing(fade_comp.time_to_fade.percent()),
+        );
+    }
+}
+fn destroy_main_menu(
+    mut cmd: Commands,
+    root_node: Query<Entity, With<MainMenuNode>>,
+) {
+    for node in root_node.iter() {
+        cmd.entity(node).despawn_recursive();
+    }
+}
+
+fn ui_menus_system(
+    mut egui_ctx: ResMut<EguiContext>,
+    mut ui_state: ResMut<UIState>,
+) {
+    match *ui_state {
+        UIState::Options => {
+            egui::Window::new("")
+                .id(egui::Id::new(2))
+                .resizable(false)
+                .title_bar(false)
+                .frame(egui::Frame {
+                    fill: egui::Color32::from_rgb(115, 99, 114),
+                    shadow: egui::epaint::Shadow::small_light(),
+                    rounding: egui::Rounding::from(8.),
+                    ..Default::default()
+                })
+                .default_pos(egui::Pos2 { x: -500., y: -500. })
+                .anchor(egui::Align2::CENTER_TOP, egui::Vec2 { x: 0., y: 300. })
+                .show(egui_ctx.ctx_mut(), |ui| {
+                    let widget_visuals = egui::style::WidgetVisuals {
+                        bg_fill: egui::Color32::from_rgb(170, 192, 170),
+                        bg_stroke: egui::Stroke {
+                            width: 1.,
+                            color: egui::Color32::from_rgb(220, 238, 209),
+                        },
+                        rounding: egui::Rounding::from(8.),
+                        fg_stroke: egui::Stroke {
+                            width: 5.,
+                            color: egui::Color32::BLACK,
+                        },
+                        expansion: 0.,
+                    };
+                    ui.visuals_mut().widgets = egui::style::Widgets {
+                        inactive: widget_visuals,
+                        ..Default::default()
+                    };
+
+                    ui.vertical_centered(|ui| {
+                        ui.separator();
+                        if ui
+                            .add_sized(
+                                [220.0, 80.0],
+                                egui::Button::new("Back to Menu"),
+                            )
+                            .on_hover_cursor(egui::CursorIcon::PointingHand)
+                            .clicked()
+                        {
+                            *ui_state = UIState::None
+                        }
+                        ui.add_space(20.);
+                    });
+                });
+        }
+        _ => {}
+    }
+}
+
 fn pause_menu_logic(
     mut egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
     mut app_state: ResMut<State<SceneState>>,
 ) {
     egui::Window::new("")
-        .id(egui::Id::new(0))
+        .id(egui::Id::new(1))
         .resizable(false)
         .title_bar(false)
         .frame(egui::Frame {
-            fill: egui::Color32::from_rgb(41, 50, 65),
+            fill: egui::Color32::from_rgb(115, 99, 114),
             shadow: egui::epaint::Shadow::small_light(),
             rounding: egui::Rounding::from(8.),
             ..Default::default()
@@ -254,20 +398,21 @@ fn pause_menu_logic(
         .default_pos(egui::Pos2 { x: -500., y: -500. })
         .anchor(egui::Align2::CENTER_TOP, egui::Vec2 { x: 0., y: 300. })
         .show(egui_ctx.ctx_mut(), |ui| {
-            ui.visuals_mut().widgets = egui::style::Widgets {
-                inactive: egui::style::WidgetVisuals {
-                    bg_fill: egui::Color32::from_rgb(61, 90, 128),
-                    bg_stroke: egui::Stroke {
-                        width: 1.,
-                        color: egui::Color32::from_rgb(100, 140, 160),
-                    },
-                    rounding: egui::Rounding::from(8.),
-                    fg_stroke: egui::Stroke {
-                        width: 2.,
-                        color: egui::Color32::WHITE,
-                    },
-                    expansion: 0.,
+            let widget_visuals = egui::style::WidgetVisuals {
+                bg_fill: egui::Color32::from_rgb(170, 192, 170),
+                bg_stroke: egui::Stroke {
+                    width: 1.,
+                    color: egui::Color32::from_rgb(220, 238, 209),
                 },
+                rounding: egui::Rounding::from(8.),
+                fg_stroke: egui::Stroke {
+                    width: 5.,
+                    color: egui::Color32::BLACK,
+                },
+                expansion: 0.,
+            };
+            ui.visuals_mut().widgets = egui::style::Widgets {
+                inactive: widget_visuals,
                 ..Default::default()
             };
 
@@ -277,7 +422,7 @@ fn pause_menu_logic(
                         ui.add_space(20.);
                         if ui
                             .add_sized(
-                                [200.0, 50.0],
+                                [220.0, 80.0],
                                 egui::Button::new("Resume"),
                             )
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
@@ -288,7 +433,7 @@ fn pause_menu_logic(
                         ui.add_space(20.);
                         if ui
                             .add_sized(
-                                [200.0, 50.0],
+                                [220.0, 80.0],
                                 egui::Button::new("Options"),
                             )
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
@@ -297,9 +442,11 @@ fn pause_menu_logic(
                             *ui_state = UIState::Options;
                         }
                         ui.add_space(20.);
+
+                        ui.separator();
                         if ui
                             .add_sized(
-                                [200.0, 50.0],
+                                [220.0, 80.0],
                                 egui::Button::new("Back to Menu"),
                             )
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
@@ -309,14 +456,13 @@ fn pause_menu_logic(
                                 .set(SceneState::MainMenu)
                                 .unwrap_or_default();
                         }
+                        ui.add_space(20.);
                     });
                 }
                 _ => {}
             }
         });
 }
-
-fn fader_system() {}
 
 #[derive(Component)]
 pub struct RootNode;
@@ -334,13 +480,20 @@ fn ui_first_setup(mut cmd: Commands) {
         color: UiColor(Color::NONE),
         ..Default::default()
     })
-    .insert(RootNode);
+    .insert(RootNode)
+    .insert(DontDestroyBetweenLevels);
+}
+
+fn clear_ui_states(mut ui_state: ResMut<UIState>) {
+    *ui_state = UIState::None;
 }
 
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(UIState::None)
             .add_startup_system(ui_first_setup)
+            .add_system(fader_system)
+            .add_system(ui_menus_system)
             .add_system_set(
                 SystemSet::on_enter(SceneState::InGame)
                     .with_system(setup_in_game_ui),
@@ -366,6 +519,10 @@ impl Plugin for UIPlugin {
             .add_system_set(
                 SystemSet::on_update(SceneState::Paused)
                     .with_system(pause_menu_logic),
+            )
+            .add_system_set(
+                SystemSet::on_exit(SceneState::Paused)
+                    .with_system(clear_ui_states),
             );
     }
 }
