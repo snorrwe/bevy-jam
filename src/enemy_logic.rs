@@ -97,7 +97,7 @@ pub fn get_test_level() -> Level {
                     ],
                     Vec3::new(0., 1200., 0.),
                 )],
-                time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
+                time_to_spawn_after_last_wave: Timer::from_seconds(25., false),
             },
             Wave {
                 spawn_data: vec![(
@@ -109,7 +109,65 @@ pub fn get_test_level() -> Level {
                     ],
                     Vec3::new(0., 1200., 0.),
                 )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(25., false),
+            },
+            Wave {
+                spawn_data: vec![
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Armored,
+                            EnemyTypesToSpawn::Healer,
+                        ],
+                        Vec3::new(0., 1200., 0.),
+                    ),
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Ranged,
+                        ],
+                        Vec3::new(0., -1200., 0.),
+                    ),
+                ],
                 time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
+            },
+            Wave {
+                spawn_data: vec![
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                        ],
+                        Vec3::new(-500., 1200., 0.),
+                    ),
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                        ],
+                        Vec3::new(500., -1200., 0.),
+                    ),
+                ],
+                time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
+            },
+            Wave {
+                spawn_data: vec![(
+                    vec![
+                        EnemyTypesToSpawn::Piker,
+                        EnemyTypesToSpawn::Piker,
+                        EnemyTypesToSpawn::Healer,
+                        EnemyTypesToSpawn::Piker,
+                        EnemyTypesToSpawn::Piker,
+                    ],
+                    Vec3::new(1500., 0., 0.),
+                )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
             },
         ],
         current_wave_index: 0,

@@ -48,7 +48,7 @@ fn update_supply_text(
 ) {
     for mut text in supply_texts.iter_mut() {
         text.sections[0].value =
-            format!("Supply: {} / {}", workers.iter().len(), max_supply.0);
+            format!("Units: {} / {}", workers.iter().len(), max_supply.0);
     }
 
     for mut text in wave_texts.iter_mut() {
@@ -249,6 +249,35 @@ fn setup_in_game_ui(
                                 },
                             ))
                             .insert(WaveText);
+                    });
+                child
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                left: Val::Px(40.),
+                                right: Val::Auto,
+                                bottom: Val::Px(40.),
+                                top: Val::Auto,
+                            },
+                            size: Size::new(Val::Px(100.0), Val::Auto),
+                            ..Default::default()
+                        },
+                        color: UiColor(Color::NONE),
+                        ..Default::default()
+                    })
+                    .with_children(|child| {
+                        child.spawn_bundle(TextBundle::from_section(
+                            "WASD to move
+Drag and Drop units to combine them
+Space to spawn new units (for 10 bloodrocks)",
+                            TextStyle {
+                                font: asset_server
+                                    .load("fonts/FiraSans-Bold.ttf"),
+                                font_size: 30.0,
+                                color: Color::WHITE,
+                            },
+                        ));
                     });
             });
         });
