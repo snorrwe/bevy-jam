@@ -358,7 +358,6 @@ fn destroy_main_menu(
     mut cmd: Commands,
     root_node: Query<Entity, With<MainMenuNode>>,
 ) {
-    info!("destroying mainmenu!");
     for node in root_node.iter() {
         cmd.entity(node).despawn_recursive();
     }
@@ -633,7 +632,7 @@ fn end_game_manager_system(
                 };
 
                 ui.vertical_centered(|ui| {
-                    ui.add_space(20.);
+                    ui.separator();
 
                     if ui
                         .add_sized(
