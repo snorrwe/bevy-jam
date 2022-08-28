@@ -1,5 +1,6 @@
 use crate::{
     easing::Easing,
+    enemy_logic::LevelManager,
     game::{BloodrockAmount, MaxSupplyAmount},
     lerp::Lerp,
     worker_logic::UnitFollowPlayer,
@@ -19,6 +20,9 @@ pub struct BloodrockText;
 #[derive(Component)]
 pub struct SupplyText;
 
+#[derive(Component)]
+pub struct WaveText;
+
 #[derive(PartialEq, Clone)]
 pub enum UIState {
     Options,
@@ -36,6 +40,8 @@ fn update_bloodrock_text(
 
 fn update_supply_text(
     mut supply_texts: Query<&mut Text, With<SupplyText>>,
+    mut wave_texts: Query<&mut Text, (With<WaveText>, Without<SupplyText>)>,
+    level_manager: Res<LevelManager>,
     max_supply: Res<MaxSupplyAmount>,
 
     workers: Query<Entity, With<UnitFollowPlayer>>,
@@ -43,6 +49,14 @@ fn update_supply_text(
     for mut text in supply_texts.iter_mut() {
         text.sections[0].value =
             format!("Supply: {} / {}", workers.iter().len(), max_supply.0);
+    }
+
+    for mut text in wave_texts.iter_mut() {
+        text.sections[0].value = format!(
+            "Wave: {} / {}",
+            level_manager.current_level.current_wave_index,
+            level_manager.current_level.waves.len()
+        );
     }
 }
 #[derive(Component)]
@@ -193,7 +207,7 @@ fn setup_in_game_ui(
                     .with_children(|child| {
                         child
                             .spawn_bundle(TextBundle::from_section(
-                                "Supply: 0 / 10",
+                                "Units: 0 / 10",
                                 TextStyle {
                                     font: asset_server
                                         .load("fonts/FiraSans-Bold.ttf"),
@@ -202,6 +216,39 @@ fn setup_in_game_ui(
                                 },
                             ))
                             .insert(SupplyText);
+                    });
+
+                child
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                right: Val::Auto,
+                                left: Val::Percent(0.),
+                                top: Val::Percent(3.),
+                                bottom: Val::Auto,
+                            },
+
+                            size: Size::new(Val::Percent(100.0), Val::Auto),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::FlexEnd,
+                            ..Default::default()
+                        },
+                        color: UiColor(Color::NONE),
+                        ..Default::default()
+                    })
+                    .with_children(|child| {
+                        child
+                            .spawn_bundle(TextBundle::from_section(
+                                "",
+                                TextStyle {
+                                    font: asset_server
+                                        .load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 35.0,
+                                    color: Color::WHITE,
+                                },
+                            ))
+                            .insert(WaveText);
                     });
             });
         });

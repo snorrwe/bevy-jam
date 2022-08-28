@@ -44,8 +44,8 @@ pub struct Wave {
 }
 #[derive(Clone)]
 pub struct Level {
-    waves: Vec<Wave>,
-    current_wave_index: usize,
+    pub waves: Vec<Wave>,
+    pub current_wave_index: usize,
 }
 #[derive(Deref, DerefMut)]
 pub struct LevelManager {
