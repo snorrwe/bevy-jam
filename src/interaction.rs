@@ -255,6 +255,11 @@ fn spawn_eating_particles(
     });
 }
 
+fn setup(mut hovered: ResMut<Hovered>, mut selected: ResMut<Selected>) {
+    hovered.0 = None;
+    selected.0 = None;
+}
+
 impl Plugin for InteractionPlugin {
     fn build(&self, app: &mut App) {
         const DESELECT: &str = "deselect-stage";
@@ -262,6 +267,9 @@ impl Plugin for InteractionPlugin {
             CoreStage::Update,
             DESELECT,
             SystemStage::parallel(),
+        )
+        .add_system_set(
+            SystemSet::on_enter(SceneState::InGame).with_system(setup),
         )
         .add_system_set(
             SystemSet::on_update(SceneState::InGame)
