@@ -416,7 +416,7 @@ fn player_follower_system(
                 let direction_vector = player_tr.translation() - tr.translation;
 
                 let direction_vector = direction_vector.truncate();
-                if direction_vector.length() < 400. {
+                if direction_vector.length() < 500. {
                     continue;
                 }
                 let direction_vector = direction_vector.normalize();

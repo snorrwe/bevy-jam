@@ -9,7 +9,8 @@ use crate::{
     worker_logic::{
         change_class, merge_units, CanEatWorker, UnitClass, UnitSize,
     },
-    ChangeTimeScaleEvent, PlayerCamera, Selectable, DEFAULT_TIME_SCALE,
+    ChangeTimeScaleEvent, PlayerCamera, SceneState, Selectable,
+    DEFAULT_TIME_SCALE,
 };
 use std::time::Duration;
 
@@ -256,10 +257,23 @@ fn spawn_eating_particles(
 
 impl Plugin for InteractionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_system(select_worker_system)
-            .add_system_to_stage(CoreStage::PostUpdate, deselect_on_mouse_up)
-            .add_system(mouse_follow_system)
-            .insert_resource(Hovered(None))
-            .insert_resource(Selected(None));
+        const DESELECT: &str = "deselect-stage";
+        app.add_stage_after(
+            CoreStage::Update,
+            DESELECT,
+            SystemStage::parallel(),
+        )
+        .add_system_set(
+            SystemSet::on_update(SceneState::InGame)
+                .with_system(select_worker_system)
+                .with_system(mouse_follow_system),
+        )
+        .add_system_set(
+            SystemSet::on_update(SceneState::InGame)
+                .label(DESELECT)
+                .with_system(deselect_on_mouse_up),
+        )
+        .insert_resource(Hovered(None))
+        .insert_resource(Selected(None));
     }
 }
