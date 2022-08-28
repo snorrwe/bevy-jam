@@ -1,4 +1,5 @@
 mod animation;
+mod audio;
 mod collision;
 mod combat;
 mod easing;
@@ -154,6 +155,8 @@ pub fn app() -> App {
     .add_plugin(particles::ParticlePlugin)
     .add_plugin(ui::UIPlugin)
     .add_plugin(EguiPlugin)
+    .add_plugin(bevy_kira_audio::AudioPlugin)
+    .add_plugin(audio::AudioPlugin)
     .add_state(SceneState::MainMenu)
     .add_startup_system(setup_player_camera)
     .add_system_set(

@@ -68,7 +68,6 @@ fn setup_in_game_ui(
     root_node: Query<Entity, With<RootNode>>,
     mut losing_manager: ResMut<EndGameManager>,
 ) {
-    info!("Setting up in game ui!!");
     losing_manager.state = EndGameState::NotEndGame;
     losing_manager.time_to_fade_in = Timer::from_seconds(1., false);
     for node in root_node.iter() {
