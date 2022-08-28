@@ -7,6 +7,7 @@ on:
 
 env:
   RELEASE_NAME: my_game
+  PUBLIC_URL: ""
 
 jobs:
   setup:
@@ -102,3 +103,35 @@ jobs:
           prerelease: false
           fail_on_unmatched_files: true
           files: ./${{ env.RELEASE_NAME }}-${{ needs.setup.outputs.version }}-ubuntu.zip
+
+  release-wasm:
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - uses: Swatinem/rust-cache@v1
+      - name: Install Trunk
+        uses: jetli/trunk-action@v0.1.0
+        with:
+          version: "latest"
+      - name: Trunk Build
+        run: |
+          trunk build --release --public-url ${{ env.PUBLIC_URL }}
+
+      - name: Rename
+        run: |
+          mv ./launchers/wasm/dist/ ./${{ env.RELEASE_NAME }}
+      - name: Zip release
+        uses: vimtor/action-zip@v1
+        with:
+          files: ./${{ env.RELEASE_NAME }}
+          recursive: true
+          dest: ./${{ env.RELEASE_NAME }}-${{ needs.setup.outputs.version }}-wasm.zip
+      - name: Upload
+        uses: softprops/action-gh-release@v1
+        with:
+          draft: false
+          prerelease: false
+          fail_on_unmatched_files: true
+          files: ./${{ env.RELEASE_NAME }}-${{ needs.setup.outputs.version }}-wasm.zip
