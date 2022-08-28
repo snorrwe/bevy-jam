@@ -16,7 +16,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-pub const LAUNCHER_TITLE: &str = "Bevy Jam - TBA";
+pub const LAUNCHER_TITLE: &str = "Goo vs Goblins";
 
 #[derive(Debug, Default, Clone, Copy, Component)]
 pub struct Selectable;
