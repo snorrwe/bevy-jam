@@ -269,7 +269,8 @@ fn setup_in_game_ui(
                         child.spawn_bundle(TextBundle::from_section(
                             "WASD to move
 Drag and Drop units to combine them
-Space to spawn new units (for 10 bloodrocks)",
+'SPACE' - spawn new unit - Cost: 10
+'F' - deal damage around self - Cost: 3",
                             TextStyle {
                                 font: asset_server
                                     .load("fonts/FiraSans-Bold.ttf"),

@@ -3,9 +3,12 @@ use crate::{
     audio::{AudioAssets, PlayAudioEventPositional},
     collision,
     easing::Easing,
+    enemy_logic::BasicEnemyLogic,
     get_children_recursive,
-    health::{hp_material, DestroyEntity, Health},
+    health::{hp_material, DestroyEntity, Health, HealthChangedEvent},
     interaction::MouseFollow,
+    lerp::lerp_f32,
+    particles,
     ui::{EndGameManager, EndGameState},
     worker_logic::{
         change_class, CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize,
@@ -15,6 +18,7 @@ use crate::{
 };
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
+use std::time::Duration;
 
 pub struct GamePlugin;
 
@@ -395,6 +399,7 @@ fn z_sorter_system(
 fn handle_keyboard_movement(
     delta: &mut Vec2,
     pressed_space: &mut bool,
+    pressed_f: &mut bool,
     keyboard_input: &Input<KeyCode>,
 ) {
     for key in keyboard_input.get_pressed() {
@@ -419,6 +424,9 @@ fn handle_keyboard_movement(
         match key {
             KeyCode::Space => {
                 *pressed_space = true;
+            }
+            KeyCode::F => {
+                *pressed_f = true;
             }
             _ => {}
         }
@@ -447,6 +455,18 @@ fn handle_pausing_system(
     }
 }
 
+fn change_player_size_based_on_bloodrock(
+    bloodrock: Res<BloodrockAmount>,
+    mut q_player: Query<&mut Transform, With<PlayerController>>,
+) {
+    let player_size = bloodrock.0.max(1).min(50);
+
+    for mut tr in q_player.iter_mut() {
+        tr.scale =
+            Vec3::splat(lerp_f32(0.75, 1.25, player_size as f32 * 2. / 100.))
+    }
+}
+
 fn player_controll_system(
     mut q_player: Query<&mut Transform, With<PlayerController>>,
     workers: Query<Entity, With<UnitFollowPlayer>>,
@@ -460,21 +480,31 @@ fn player_controll_system(
     mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
     audio_assets: Res<AudioAssets>,
     mut send_audio_event: EventWriter<PlayAudioEventPositional>,
+    mut send_health_changed_event: EventWriter<HealthChangedEvent>,
+    enemies: Query<(&GlobalTransform, Entity), With<BasicEnemyLogic>>,
 ) {
     let delta_time = time.delta_seconds();
     let mut delta_movement = Vec2::new(0., 0.);
     let mut pressed_space = false;
-    handle_keyboard_movement(&mut delta_movement, &mut pressed_space, &inputs);
+    let mut pressed_f = false;
+    handle_keyboard_movement(
+        &mut delta_movement,
+        &mut pressed_space,
+        &mut pressed_f,
+        &inputs,
+    );
 
     let player_speed = 300.;
 
     for mut tr in q_player.iter_mut() {
         tr.translation += delta_movement.extend(0.) * player_speed * delta_time;
 
+        let mut spawn_particles = false;
         if pressed_space
             && workers.iter().len() < max_supply.0
             && bloodrock.0 >= 10
         {
+            spawn_particles = true;
             send_audio_event.send(PlayAudioEventPositional {
                 sound: audio_assets.spawning_unit.clone(),
                 position: tr.translation,
@@ -518,6 +548,70 @@ fn player_controll_system(
                     &mut *hp_assets,
                 );
             }
+        }
+        if pressed_f && bloodrock.0 >= 3 {
+            spawn_particles = true;
+            bloodrock.0 -= 3;
+            for (enemy_tr, enemy_e) in enemies.iter() {
+                let distance = (enemy_tr.translation().truncate()
+                    - tr.translation.truncate())
+                .length();
+                if distance < 500. {
+                    send_health_changed_event.send(HealthChangedEvent {
+                        target: enemy_e,
+                        amount: -1.5,
+                        piercing: 0.5,
+                    });
+                }
+            }
+        }
+
+        if spawn_particles {
+            let body = particles::ParticleBody::SpriteSheet {
+                sheet_bundle: SpriteSheetBundle {
+                    texture_atlas: game_assets.circle_sprite.clone(),
+                    sprite: TextureAtlasSprite {
+                        color: Color::RED,
+                        ..Default::default()
+                    },
+                    transform: Transform::from_scale(Vec3::splat(0.)),
+                    ..Default::default()
+                },
+                color_over_lifetime: Some(particles::SpriteColorOverLifetime {
+                    start_color: Color::RED,
+                    end_color: Color::ORANGE_RED,
+                    easing: Easing::Linear,
+                }),
+            };
+            cmd.spawn_bundle(particles::EmitterBundle {
+                lifetime: particles::Lifetime(Timer::new(
+                    Duration::from_millis(500),
+                    false,
+                )),
+                spawn_timer: particles::SpawnTimer(Timer::new(
+                    Duration::from_millis(40),
+                    false,
+                )),
+                config: particles::SpawnConfig {
+                    min_count: 20,
+                    max_count: 25,
+                    min_life: Duration::from_millis(600),
+                    max_life: Duration::from_millis(800),
+                    min_vel: -9.0,
+                    max_vel: 9.0,
+                    min_acc: -0.15,
+                    max_acc: -0.13,
+                    easing: Easing::OutElastic,
+                    size_over_lifetime: particles::SizeOverLifetime {
+                        start_size: Vec3::splat(1.3),
+                        end_size: Vec3::splat(0.3),
+                        easing: Easing::QuartOut,
+                    },
+                    bodies: vec![body],
+                },
+                transform: Transform::from_translation(tr.translation),
+                global_transform: Default::default(),
+            });
         }
     }
 }
@@ -858,11 +952,11 @@ fn spawn_stuff(
         spawn_bloodrock_node(
             &mut cmd,
             &resource_assets,
-            Vec3::new(100., 100., 0.),
+            Vec3::new(-100., -100., 0.),
         );
         cmd.spawn_bundle(SpriteSheetBundle {
             texture_atlas: game_assets.player_sprite.clone(),
-            transform: Transform::from_scale(Vec3::new(1., 1., 1.)),
+            transform: Transform::from_scale(Vec3::splat(0.5)),
             ..Default::default()
         })
         .insert(PlayerController)
@@ -913,7 +1007,7 @@ fn spawn_stuff(
             &mut cmd,
             &game_assets,
             &resource_assets,
-            Vec3::new(180., 10., 0.),
+            Vec3::new(180., 150., 0.),
             UnitClass::Sworder,
             &mut *hp_assets,
         );
@@ -921,7 +1015,7 @@ fn spawn_stuff(
             &mut cmd,
             &game_assets,
             &resource_assets,
-            Vec3::new(0., 200., 0.),
+            Vec3::new(0., -200., 0.),
             UnitClass::Worker,
             &mut *hp_assets,
         );
@@ -954,7 +1048,8 @@ impl Plugin for GamePlugin {
                     .with_system(animate_on_movement_system)
                     .with_system(harvester_logic_system)
                     .with_system(harvester_carrying_something_system)
-                    .with_system(check_lose_system),
+                    .with_system(check_lose_system)
+                    .with_system(change_player_size_based_on_bloodrock),
             )
             .add_system_set(
                 SystemSet::on_enter(SceneState::InGame)

@@ -4,7 +4,8 @@ use crate::{
     collision,
     combat::{AttackType, CombatComponent},
     game::{
-        AvoidOthers, DontSortZ, MovementAnimationController, PlayerController,
+        spawn_bloodrock_node, AvoidOthers, DontSortZ,
+        MovementAnimationController, PlayerController, ResourceAssets,
         UnitType, Velocity,
     },
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
@@ -37,6 +38,7 @@ enum EnemyTypesToSpawn {
     Piker,
     Armored,
     Healer,
+    BloodrockNode,
     Boss1,
 }
 
@@ -80,15 +82,21 @@ pub fn get_test_level() -> Level {
                 time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
             },
             Wave {
-                spawn_data: vec![(
-                    vec![
-                        EnemyTypesToSpawn::Thrash,
-                        EnemyTypesToSpawn::Thrash,
-                        EnemyTypesToSpawn::Thrash,
-                        EnemyTypesToSpawn::Thrash,
-                    ],
-                    Vec3::new(0., 1200., 0.),
-                )],
+                spawn_data: vec![
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                        ],
+                        Vec3::new(0., 1200., 0.),
+                    ),
+                    (
+                        vec![EnemyTypesToSpawn::BloodrockNode],
+                        Vec3::new(-500., 100., 0.),
+                    ),
+                ],
                 time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
             },
             Wave {
@@ -198,6 +206,7 @@ fn level_progresser_system(
     // FIXME: reuse the same mesh?
     mut mesh_assets: ResMut<Assets<Mesh>>,
     mut end_game_state: ResMut<EndGameManager>,
+    resource_assets: Res<ResourceAssets>,
 ) {
     //TODO: win level when last wave is spawned && no enemies left!
     if level_manager.current_level.waves.len()
@@ -234,6 +243,7 @@ fn level_progresser_system(
                         spawn_location,
                         &mut *hp_assets,
                         &mut *mesh_assets,
+                        &resource_assets,
                     );
                 }
             }
@@ -260,6 +270,7 @@ fn spawn_enemy_based_on_type(
     pos: Vec3,
     hp_assets: &mut Assets<hp_material::HpMaterial>,
     mesh_assets: &mut Assets<Mesh>,
+    resource_assets: &ResourceAssets,
 ) {
     let mut spawn_enemy = |health: Health,
                            combat_compo: Option<&CombatComponent>,
@@ -397,6 +408,9 @@ fn spawn_enemy_based_on_type(
             });
         }
         EnemyTypesToSpawn::Boss1 => {}
+        EnemyTypesToSpawn::BloodrockNode => {
+            spawn_bloodrock_node(&mut cmd, &resource_assets, pos)
+        }
     }
 }
 
@@ -448,6 +462,7 @@ fn enemy_spawner_system(
     mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
     // FIXME: reuse the same mesh?
     mut mesh_assets: ResMut<Assets<Mesh>>,
+    resource_assets: Res<ResourceAssets>,
 ) {
     let mut rng = rand::thread_rng();
     for (mut enemy_spawner, global_tr) in enemy_spawners.iter_mut() {
@@ -469,6 +484,7 @@ fn enemy_spawner_system(
                         * enemy_spawner.distance_from_spawn_point),
                 &mut *hp_assets,
                 &mut *mesh_assets,
+                &resource_assets,
             );
         }
     }
