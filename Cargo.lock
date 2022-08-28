@@ -2168,6 +2168,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "goo-vs-goblins"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+ "bevy-inspector-egui",
+ "bevy_egui 0.16.0",
+ "bevy_kira_audio",
+ "ezing",
+ "image 0.24.3",
+ "rand",
+ "tracing",
+ "winit 0.27.2",
+]
+
+[[package]]
 name = "gpu-alloc"
 version = "0.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2729,21 +2744,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "my-game"
-version = "0.1.0"
-dependencies = [
- "bevy",
- "bevy-inspector-egui",
- "bevy_egui 0.16.0",
- "bevy_kira_audio",
- "ezing",
- "image 0.24.3",
- "rand",
- "tracing",
- "winit 0.27.2",
-]
-
-[[package]]
 name = "naga"
 version = "0.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2779,8 +2779,8 @@ name = "native-launcher"
 version = "0.1.0"
 dependencies = [
  "bevy",
+ "goo-vs-goblins",
  "image 0.24.3",
- "my-game",
  "winit 0.26.1",
 ]
 
@@ -4318,7 +4318,7 @@ name = "wasm-launcher"
 version = "0.1.0"
 dependencies = [
  "bevy",
- "my-game",
+ "goo-vs-goblins",
  "stylist",
  "web-sys",
  "yew",
