@@ -45,12 +45,18 @@ fn update_supply_text(
             format!("Supply: {} / {}", workers.iter().len(), max_supply.0);
     }
 }
+#[derive(Component)]
+pub struct FaderScreenComponent;
 
 fn setup_in_game_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     root_node: Query<Entity, With<RootNode>>,
+    mut losing_manager: ResMut<EndGameManager>,
 ) {
+    info!("Setting up in game ui!!");
+    losing_manager.state = EndGameState::NotEndGame;
+    losing_manager.time_to_fade_in = Timer::from_seconds(1., false);
     for node in root_node.iter() {
         commands.entity(node).with_children(|cmd| {
             //Main node
@@ -94,6 +100,40 @@ fn setup_in_game_ui(
                         end_color: Color::rgba(0., 0., 0., 0.),
                         time_to_fade: Timer::from_seconds(3., false),
                         easing: Easing::QuartOut,
+                    })
+                    .insert(FaderScreenComponent);
+
+                child
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                right: Val::Auto,
+                                left: Val::Percent(0.),
+                                top: Val::Percent(10.),
+                                bottom: Val::Auto,
+                            },
+
+                            size: Size::new(Val::Percent(100.0), Val::Auto),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::FlexEnd,
+                            ..Default::default()
+                        },
+                        color: UiColor(Color::NONE),
+                        ..Default::default()
+                    })
+                    .with_children(|child| {
+                        child
+                            .spawn_bundle(TextBundle::from_section(
+                                "",
+                                TextStyle {
+                                    font: asset_server
+                                        .load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 50.0,
+                                    color: Color::WHITE,
+                                },
+                            ))
+                            .insert(EndGameTextComponent);
                     });
 
                 child
@@ -172,6 +212,7 @@ fn destroy_in_game_ui(
     mut cmd: Commands,
     main_node: Query<Entity, With<MainInGameNode>>,
 ) {
+    info!("Destroying in game ui");
     for e in main_node.iter() {
         cmd.entity(e).despawn_recursive();
     }
@@ -232,7 +273,6 @@ fn main_menu_logic(
                             .on_hover_cursor(egui::CursorIcon::PointingHand)
                             .clicked()
                         {
-                            //TODO: ADD FADE!! on InGame -s tart, or here i guesss
                             app_state
                                 .set(SceneState::InGame)
                                 .unwrap_or_default();
@@ -318,6 +358,7 @@ fn destroy_main_menu(
     mut cmd: Commands,
     root_node: Query<Entity, With<MainMenuNode>>,
 ) {
+    info!("destroying mainmenu!");
     for node in root_node.iter() {
         cmd.entity(node).despawn_recursive();
     }
@@ -488,9 +529,135 @@ fn clear_ui_states(mut ui_state: ResMut<UIState>) {
     *ui_state = UIState::None;
 }
 
+pub enum EndGameState {
+    NotEndGame,
+    Win,
+    Lose,
+}
+
+pub struct EndGameManager {
+    pub state: EndGameState,
+    pub time_to_fade_in: Timer,
+}
+
+use std::time::Duration;
+#[derive(Component)]
+pub struct EndGameTextComponent;
+fn end_game_manager_system(
+    mut end_game_manager: ResMut<EndGameManager>,
+    time: Res<GameTime>,
+    mut end_game_text: Query<&mut Text, With<EndGameTextComponent>>,
+    mut egui_ctx: ResMut<EguiContext>,
+    mut app_state: ResMut<State<SceneState>>,
+    mut cmd: Commands,
+    fader_screen: Query<Entity, With<FaderScreenComponent>>,
+) {
+    match end_game_manager.state {
+        EndGameState::Lose => {
+            if end_game_manager.time_to_fade_in.elapsed()
+                == Duration::from_millis(0)
+            {
+                for e in fader_screen.iter() {
+                    cmd.entity(e).insert(Fade {
+                        start_color: Color::rgba(0., 0., 0., 0.),
+                        end_color: Color::rgba(0., 0., 0., 0.5),
+                        time_to_fade: Timer::from_seconds(1., false),
+                        easing: Easing::QuartOut,
+                    });
+                }
+            }
+            end_game_manager.time_to_fade_in.tick(time.delta());
+            if end_game_manager.time_to_fade_in.finished() {
+                for mut text in end_game_text.iter_mut() {
+                    text.sections[0].value = format!("You lost!");
+                }
+            }
+        }
+        EndGameState::Win => {
+            if end_game_manager.time_to_fade_in.elapsed()
+                == Duration::from_millis(0)
+            {
+                for e in fader_screen.iter() {
+                    cmd.entity(e).insert(Fade {
+                        start_color: Color::rgba(0., 0., 0., 0.),
+                        end_color: Color::rgba(0., 0., 0., 0.5),
+                        time_to_fade: Timer::from_seconds(1., false),
+                        easing: Easing::QuartOut,
+                    });
+                }
+            }
+
+            end_game_manager.time_to_fade_in.tick(time.delta());
+            if end_game_manager.time_to_fade_in.finished() {
+                for mut text in end_game_text.iter_mut() {
+                    text.sections[0].value = format!("You win!");
+                }
+            }
+        }
+
+        _ => {}
+    }
+
+    if !matches!(end_game_manager.state, EndGameState::NotEndGame)
+        && end_game_manager.time_to_fade_in.finished()
+    {
+        egui::Window::new("")
+            .id(egui::Id::new(5))
+            .resizable(false)
+            .title_bar(false)
+            .frame(egui::Frame {
+                fill: egui::Color32::from_rgb(115, 99, 114),
+                shadow: egui::epaint::Shadow::small_light(),
+                rounding: egui::Rounding::from(8.),
+                ..Default::default()
+            })
+            .default_pos(egui::Pos2 { x: -500., y: -500. })
+            .anchor(egui::Align2::CENTER_TOP, egui::Vec2 { x: 0., y: 300. })
+            .show(egui_ctx.ctx_mut(), |ui| {
+                let widget_visuals = egui::style::WidgetVisuals {
+                    bg_fill: egui::Color32::from_rgb(170, 192, 170),
+                    bg_stroke: egui::Stroke {
+                        width: 1.,
+                        color: egui::Color32::from_rgb(220, 238, 209),
+                    },
+                    rounding: egui::Rounding::from(8.),
+                    fg_stroke: egui::Stroke {
+                        width: 5.,
+                        color: egui::Color32::BLACK,
+                    },
+                    expansion: 0.,
+                };
+                ui.visuals_mut().widgets = egui::style::Widgets {
+                    inactive: widget_visuals,
+                    ..Default::default()
+                };
+
+                ui.vertical_centered(|ui| {
+                    ui.add_space(20.);
+
+                    if ui
+                        .add_sized(
+                            [220.0, 80.0],
+                            egui::Button::new("Back to Menu"),
+                        )
+                        .on_hover_cursor(egui::CursorIcon::PointingHand)
+                        .clicked()
+                    {
+                        app_state.set(SceneState::MainMenu).unwrap_or_default();
+                    }
+                    ui.add_space(20.);
+                });
+            });
+    }
+}
+
 impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.insert_resource(UIState::None)
+            .insert_resource(EndGameManager {
+                time_to_fade_in: Timer::from_seconds(1., false),
+                state: EndGameState::NotEndGame,
+            })
             .add_startup_system(ui_first_setup)
             .add_system(fader_system)
             .add_system(ui_menus_system)
@@ -501,7 +668,8 @@ impl Plugin for UIPlugin {
             .add_system_set(
                 SystemSet::on_update(SceneState::InGame)
                     .with_system(update_bloodrock_text)
-                    .with_system(update_supply_text),
+                    .with_system(update_supply_text)
+                    .with_system(end_game_manager_system),
             )
             .add_system_set(
                 SystemSet::on_enter(SceneState::MainMenu)

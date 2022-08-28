@@ -5,6 +5,7 @@ use crate::{
     combat::{AttackType, CombatComponent},
     game::{AvoidOthers, DontSortZ, PlayerController, UnitType, Velocity},
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
+    ui::{EndGameManager, EndGameState},
     worker_logic::{
         HealerComponent, HealingState, TankComponent, UnitFollowPlayer,
     },
@@ -124,13 +125,14 @@ fn level_progresser_system(
     mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
     // FIXME: reuse the same mesh?
     mut mesh_assets: ResMut<Assets<Mesh>>,
+    mut end_game_state: ResMut<EndGameManager>,
 ) {
     //TODO: win level when last wave is spawned && no enemies left!
     if level_manager.current_level.waves.len()
         <= level_manager.current_level.current_wave_index
     {
         if enemies.iter().len() < 1 {
-            info!("CONGRATS, YOU WON!");
+            end_game_state.state = EndGameState::Win;
         }
         return;
     } else {
@@ -214,7 +216,7 @@ fn spawn_enemy_based_on_type(
                 Some(&CombatComponent {
                     target_type: UnitType::Ally,
                     attack_type: AttackType::Melee,
-                    damage: 0.5,
+                    damage: 0.6,
                     time_between_attacks: Timer::from_seconds(1., true),
                     attack_range: 80.,
                     piercing: 0.,

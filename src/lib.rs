@@ -126,6 +126,7 @@ fn unload_level(
     mut level_state: ResMut<game::LevelState>,
     mut level_manager: ResMut<enemy_logic::LevelManager>,
 ) {
+    info!("unloading level!");
     for entity in query.iter() {
         cmd.entity(entity).despawn_recursive();
     }
@@ -153,17 +154,13 @@ pub fn app() -> App {
     .add_plugin(particles::ParticlePlugin)
     .add_plugin(ui::UIPlugin)
     .add_plugin(EguiPlugin)
-    .add_state(SceneState::MainMenu) // FIXME: main menu
+    .add_state(SceneState::MainMenu)
     .add_startup_system(setup_player_camera)
     .add_system_set(
         SystemSet::on_enter(SceneState::MainMenu).with_system(unload_level),
     )
     .add_system_set(
         SystemSet::on_update(SceneState::InGame).with_system(game_time_update),
-    )
-    .add_system_set(
-        SystemSet::on_exit(SceneState::InGame)
-            .with_system(teardown_player_camera),
     )
     .insert_resource(GameTime::default())
     .add_event::<ChangeTimeScaleEvent>();

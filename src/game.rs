@@ -5,6 +5,7 @@ use crate::{
     get_children_recursive,
     health::{hp_material, DestroyEntity, Health},
     interaction::MouseFollow,
+    ui::{EndGameManager, EndGameState},
     worker_logic::{
         change_class, CanEatWorker, UnitClass, UnitFollowPlayer, UnitSize,
         WorkerHead,
@@ -94,9 +95,12 @@ pub struct SpawnAllies {
     pub time_between_spawns: Timer,
 }
 
-fn check_lose_system(player: Query<Entity, With<PlayerController>>) {
+fn check_lose_system(
+    player: Query<Entity, With<PlayerController>>,
+    mut end_game_state: ResMut<EndGameManager>,
+) {
     if player.iter().len() <= 0 {
-        info!("YOU LOST!");
+        end_game_state.state = EndGameState::Lose;
     }
 }
 
@@ -837,8 +841,11 @@ fn spawn_stuff(
     mut level_state: ResMut<LevelState>,
     mut mesh_assets: ResMut<Assets<Mesh>>,
     mut hp_assets: ResMut<Assets<hp_material::HpMaterial>>,
+
+    mut bloodrock_amount: ResMut<BloodrockAmount>,
 ) {
     if matches!(*level_state, LevelState::NeedToSpawnStuff) {
+        bloodrock_amount.0 = 20;
         *level_state = LevelState::SpawnedStuff;
 
         spawn_bloodrock_node(
