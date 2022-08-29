@@ -59,6 +59,7 @@ jobs:
           cargo build --release
       - name: Rename
         run: |
+          chmod +x ./target/release/native-launcher
           mv ./target/release/native-launcher ./${{ env.RELEASE_NAME }}
       - name: Zip release
         uses: vimtor/action-zip@v1
@@ -90,6 +91,7 @@ jobs:
           cargo build --release
       - name: Rename
         run: |
+          chmod +x ./target/release/native-launcher
           mv ./target/release/native-launcher ./${{ env.RELEASE_NAME }}
       - name: Zip release
         uses: vimtor/action-zip@v1
