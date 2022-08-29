@@ -387,6 +387,7 @@ pub struct MainMenuNode;
 fn setup_main_menu(
     mut cmd: Commands,
     root_node: Query<Entity, With<RootNode>>,
+    asset_server: Res<AssetServer>,
 ) {
     for node in root_node.iter() {
         cmd.entity(node).with_children(|child| {
@@ -403,7 +404,119 @@ fn setup_main_menu(
                     color: UiColor(Color::BLACK),
                     ..Default::default()
                 })
-                .insert(MainMenuNode);
+                .insert(MainMenuNode)
+                .with_children(|child| {
+                    child.spawn_bundle(ImageBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            size: Size::new(
+                                Val::Percent(100.0),
+                                Val::Percent(100.0),
+                            ),
+                            ..Default::default()
+                        },
+                        image: asset_server
+                            .load("sprites/misc/uibackground.png")
+                            .into(),
+                        ..Default::default()
+                    });
+                    child.spawn_bundle(ImageBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            size: Size::new(Val::Px(513.0), Val::Px(439.0)),
+                            position: UiRect {
+                                right: Val::Auto,
+                                left: Val::Percent(10.),
+                                top: Val::Percent(30.),
+                                bottom: Val::Auto,
+                            },
+                            ..Default::default()
+                        },
+                        image: asset_server
+                            .load("sprites/misc/player.png")
+                            .into(),
+                        ..Default::default()
+                    });
+                    child.spawn_bundle(ImageBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            size: Size::new(Val::Px(460.0), Val::Px(493.0)),
+                            position: UiRect {
+                                left: Val::Auto,
+                                right: Val::Percent(10.),
+                                top: Val::Percent(30.),
+                                bottom: Val::Auto,
+                            },
+                            ..Default::default()
+                        },
+                        image: asset_server
+                            .load("sprites/misc/goblin.png")
+                            .into(),
+                        ..Default::default()
+                    });
+
+                    child
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: UiRect {
+                                    right: Val::Auto,
+                                    left: Val::Percent(0.),
+                                    top: Val::Percent(3.),
+                                    bottom: Val::Auto,
+                                },
+
+                                size: Size::new(Val::Percent(100.0), Val::Auto),
+                                justify_content: JustifyContent::Center,
+                                align_items: AlignItems::FlexEnd,
+                                ..Default::default()
+                            },
+                            color: UiColor(Color::NONE),
+                            ..Default::default()
+                        })
+                        .with_children(|child| {
+                            child.spawn_bundle(TextBundle::from_section(
+                                "Goo vs Goblins",
+                                TextStyle {
+                                    font: asset_server
+                                        .load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 100.0,
+                                    color: Color::WHITE,
+                                },
+                            ));
+                        });
+
+                    child
+                        .spawn_bundle(NodeBundle {
+                            style: Style {
+                                position_type: PositionType::Absolute,
+                                position: UiRect {
+                                    right: Val::Auto,
+                                    left: Val::Percent(0.),
+                                    bottom: Val::Percent(3.),
+                                    top: Val::Auto,
+                                },
+
+                                size: Size::new(Val::Percent(100.0), Val::Auto),
+                                justify_content: JustifyContent::FlexEnd,
+                                align_items: AlignItems::FlexEnd,
+                                ..Default::default()
+                            },
+                            color: UiColor(Color::NONE),
+                            ..Default::default()
+                        })
+                        .with_children(|child| {
+                            child.spawn_bundle(TextBundle::from_section(
+                                "Made in Bevy Engine",
+                                TextStyle {
+                                    font: asset_server
+                                        .load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 20.0,
+                                    color: Color::WHITE,
+                                },
+                            ));
+                        });
+                });
         });
     }
 }
