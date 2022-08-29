@@ -3,7 +3,7 @@
 [build]
 # The index HTML file to drive the bundling process.
 target = "launchers/wasm/index.html"
-public_url = "./"
+public_url = ""
 
 [watch]
 # Watch top level dir (all crates)
