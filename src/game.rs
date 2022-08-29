@@ -84,7 +84,7 @@ pub struct Harvester {
 pub struct DontSortZ;
 #[derive(Default, Component)]
 pub struct ZOffset {
-    offset: f32,
+    pub offset: f32,
 }
 #[derive(Component)]
 pub struct Velocity(pub f32);
@@ -1035,8 +1035,8 @@ impl Plugin for GamePlugin {
         app.insert_resource(GameAssets::default())
             .insert_resource(LevelState::NeedToSpawnStuff)
             .insert_resource(ResourceAssets::default())
-            .insert_resource(MaxSupplyAmount(10))
-            .insert_resource(BloodrockAmount(20))
+            .insert_resource(MaxSupplyAmount(15))
+            .insert_resource(BloodrockAmount(25))
             .add_startup_system(setup_game)
             .add_system_to_stage(CoreStage::PostUpdate, z_sorter_system)
             .add_system(handle_pausing_system)

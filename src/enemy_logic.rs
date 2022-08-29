@@ -6,7 +6,7 @@ use crate::{
     game::{
         spawn_bloodrock_node, AvoidOthers, DontSortZ,
         MovementAnimationController, PlayerController, ResourceAssets,
-        UnitType, Velocity,
+        UnitType, Velocity, ZOffset,
     },
     health::{hp_material, Health, SpawnResourceNodeOnDeath},
     ui::{EndGameManager, EndGameState},
@@ -19,6 +19,8 @@ use rand::Rng;
 #[derive(Default)]
 pub struct EnemyAssets {
     enemies: Handle<TextureAtlas>,
+    boss1: Handle<TextureAtlas>,
+    boss2: Handle<TextureAtlas>,
 }
 pub struct EnemyLogicPlugin;
 
@@ -144,6 +146,17 @@ pub fn get_test_level() -> Level {
                 time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
             },
             Wave {
+                spawn_data: vec![(
+                    vec![
+                        EnemyTypesToSpawn::Ranged,
+                        EnemyTypesToSpawn::Boss1,
+                        EnemyTypesToSpawn::Ranged,
+                    ],
+                    Vec3::new(0., 1200., 0.),
+                )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
+            },
+            Wave {
                 spawn_data: vec![
                     (
                         vec![
@@ -163,6 +176,10 @@ pub fn get_test_level() -> Level {
                         ],
                         Vec3::new(500., -1200., 0.),
                     ),
+                    (
+                        vec![EnemyTypesToSpawn::BloodrockNode],
+                        Vec3::new(500., -100., 0.),
+                    ),
                 ],
                 time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
             },
@@ -179,15 +196,21 @@ pub fn get_test_level() -> Level {
                 time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
             },
             Wave {
-                spawn_data: vec![(
-                    vec![
-                        EnemyTypesToSpawn::Armored,
-                        EnemyTypesToSpawn::Ranged,
-                        EnemyTypesToSpawn::Ranged,
-                        EnemyTypesToSpawn::Ranged,
-                    ],
-                    Vec3::new(-1500., 0., 0.),
-                )],
+                spawn_data: vec![
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Armored,
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Ranged,
+                        ],
+                        Vec3::new(-1500., 0., 0.),
+                    ),
+                    (
+                        vec![EnemyTypesToSpawn::BloodrockNode],
+                        Vec3::new(500., 100., 0.),
+                    ),
+                ],
                 time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
             },
             Wave {
@@ -196,7 +219,6 @@ pub fn get_test_level() -> Level {
                         EnemyTypesToSpawn::Thrash,
                         EnemyTypesToSpawn::Thrash,
                         EnemyTypesToSpawn::Ranged,
-                        EnemyTypesToSpawn::Boss1,
                     ],
                     Vec3::new(0., -1500., 0.),
                 )],
@@ -219,7 +241,7 @@ pub fn get_test_level() -> Level {
                         Vec3::new(-1200., 0., 0.),
                     ),
                 ],
-                time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
+                time_to_spawn_after_last_wave: Timer::from_seconds(20., false),
             },
             Wave {
                 spawn_data: vec![
@@ -272,7 +294,7 @@ pub fn get_test_level() -> Level {
                     ],
                     Vec3::new(-1200., 1200., 0.),
                 )],
-                time_to_spawn_after_last_wave: Timer::from_seconds(5., false),
+                time_to_spawn_after_last_wave: Timer::from_seconds(30., false),
             },
         ],
         current_wave_index: 0,
@@ -512,8 +534,132 @@ fn spawn_enemy_based_on_type(
                 target_type: UnitType::Enemy,
             });
         }
-        EnemyTypesToSpawn::Boss1 => {}
-        EnemyTypesToSpawn::Boss2 => {}
+        EnemyTypesToSpawn::Boss1 => {
+            cmd.spawn_bundle(SpriteSheetBundle {
+                texture_atlas: enemy_assets.boss1.clone(),
+                ..Default::default()
+            })
+            .insert(ZOffset { offset: -100. })
+            .insert_bundle(collision::AABBBundle {
+                desc: collision::AABBDescriptor {
+                    radius: Vec3::splat(50.),
+                },
+                filter: collision::CollisionFilter {
+                    self_layers: collision::CollisionType::WORKER,
+                    collisions_mask:
+                        collision::CollisionType::WORKER_COLLISIONS,
+                },
+                ..Default::default()
+            })
+            .insert(Health {
+                current_health: 30.,
+                max_health: 30.,
+                armor: 0.,
+            })
+            .insert(CombatComponent {
+                target_type: UnitType::Ally,
+                attack_type: AttackType::Melee,
+                damage: 1.,
+                time_between_attacks: Timer::from_seconds(1., true),
+                attack_range: 80.,
+                piercing: 0.,
+                ..Default::default()
+            })
+            .insert(Transform::from_translation(pos))
+            .insert(Velocity(150.))
+            .insert(BasicEnemyLogic)
+            .insert(SpawnResourceNodeOnDeath { chance: 0. })
+            .insert(AvoidOthers { is_enabled: true })
+            .insert(MovementAnimationController {
+                is_moving: false,
+                last_frame_pos: pos,
+                time_to_stop_moving: Timer::from_seconds(0.3, false),
+            })
+            .with_children(|cmd| {
+                cmd.spawn_bundle(MaterialMesh2dBundle {
+                    mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(
+                        Mesh::from(shape::Quad {
+                            size: Vec2::new(100.0, 10.0),
+                            flip: false,
+                        }),
+                    )),
+                    material: hp_assets.add(hp_material::HpMaterial {
+                        color_empty: Color::RED,
+                        color_full: Color::ORANGE_RED,
+                        hp: 50.0,
+                        hp_max: 100.0,
+                    }),
+                    transform: Transform::from_translation(
+                        Vec3::Z * 200.0 + Vec3::Y * 60.0,
+                    ),
+                    ..Default::default()
+                })
+                .insert(DontSortZ);
+            });
+        }
+        EnemyTypesToSpawn::Boss2 => {
+            cmd.spawn_bundle(SpriteSheetBundle {
+                texture_atlas: enemy_assets.boss2.clone(),
+                ..Default::default()
+            })
+            .insert(ZOffset { offset: -100. })
+            .insert_bundle(collision::AABBBundle {
+                desc: collision::AABBDescriptor {
+                    radius: Vec3::splat(50.),
+                },
+                filter: collision::CollisionFilter {
+                    self_layers: collision::CollisionType::WORKER,
+                    collisions_mask:
+                        collision::CollisionType::WORKER_COLLISIONS,
+                },
+                ..Default::default()
+            })
+            .insert(Health {
+                current_health: 30.,
+                max_health: 30.,
+                armor: 0.,
+            })
+            .insert(CombatComponent {
+                target_type: UnitType::Ally,
+                attack_type: AttackType::Ranged,
+                damage: 0.5,
+                time_between_attacks: Timer::from_seconds(0.5, true),
+                attack_range: 200.,
+                piercing: 0.,
+                ..Default::default()
+            })
+            .insert(Transform::from_translation(pos))
+            .insert(Velocity(150.))
+            .insert(BasicEnemyLogic)
+            .insert(SpawnResourceNodeOnDeath { chance: 0. })
+            .insert(AvoidOthers { is_enabled: true })
+            .insert(MovementAnimationController {
+                is_moving: false,
+                last_frame_pos: pos,
+                time_to_stop_moving: Timer::from_seconds(0.3, false),
+            })
+            .with_children(|cmd| {
+                cmd.spawn_bundle(MaterialMesh2dBundle {
+                    mesh: bevy::sprite::Mesh2dHandle(mesh_assets.add(
+                        Mesh::from(shape::Quad {
+                            size: Vec2::new(100.0, 10.0),
+                            flip: false,
+                        }),
+                    )),
+                    material: hp_assets.add(hp_material::HpMaterial {
+                        color_empty: Color::RED,
+                        color_full: Color::ORANGE_RED,
+                        hp: 50.0,
+                        hp_max: 100.0,
+                    }),
+                    transform: Transform::from_translation(
+                        Vec3::Z * 200.0 + Vec3::Y * 60.0,
+                    ),
+                    ..Default::default()
+                })
+                .insert(DontSortZ);
+            });
+        }
         EnemyTypesToSpawn::BloodrockNode => {
             spawn_bloodrock_node(&mut cmd, &resource_assets, pos)
         }
@@ -674,6 +820,18 @@ fn setup_system(
         asset_server.load("sprites/enemies/enemies.png"),
         Vec2::new(122., 115.),
         6,
+        1,
+    ));
+    enemy_assets.boss1 = texture_atlases.add(TextureAtlas::from_grid(
+        asset_server.load("sprites/enemies/boss1.png"),
+        Vec2::new(157., 244.),
+        1,
+        1,
+    ));
+    enemy_assets.boss2 = texture_atlases.add(TextureAtlas::from_grid(
+        asset_server.load("sprites/enemies/boss2.png"),
+        Vec2::new(185., 225.),
+        1,
         1,
     ));
 }
