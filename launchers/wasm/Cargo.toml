@@ -6,7 +6,22 @@ workspace = "../.."
 
 [dependencies]
 goo-vs-goblins = { package = "goo-vs-goblins", path = "../.." }
-bevy = "0.8"
 web-sys = { version="0.3.59", features=["Document", "Window"] }
 yew = "0.19.3"
 stylist = { version= "0.10.1", features=["yew_integration"] }
+
+[dependencies.bevy]
+version = "0.8.1"
+default-features = false
+features = [
+  "animation",
+  "bevy_asset",
+  "bevy_gilrs",
+  "bevy_scene",
+  "bevy_winit",
+  "render",
+  "png",
+  "hdr",
+  "x11",
+  "filesystem_watcher",
+]
