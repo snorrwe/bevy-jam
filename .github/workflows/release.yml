@@ -7,7 +7,6 @@ on:
 
 env:
   RELEASE_NAME: goo_vs_goblins
-  PUBLIC_URL: "."
 
 jobs:
   setup:
@@ -119,7 +118,7 @@ jobs:
           version: "latest"
       - name: Trunk Build
         run: |
-          trunk build --release --public-url ${{ env.PUBLIC_URL }}
+          trunk build --release
 
       - name: Rename
         run: |
