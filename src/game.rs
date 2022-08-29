@@ -849,7 +849,7 @@ fn spawn_unit_with_class(
     hp_assets: &mut Assets<hp_material::HpMaterial>,
 ) {
     let mut carry_sprite_transform =
-        Transform::from_translation(Vec3::new(0., 0., 0.12));
+        Transform::from_translation(Vec3::new(0., 0., 0.0000012));
     carry_sprite_transform.scale = Vec3::splat(0.);
 
     let entity_id = cmd
@@ -896,7 +896,7 @@ fn spawn_unit_with_class(
                 .spawn_bundle(SpriteSheetBundle {
                     texture_atlas: game_assets.worker_head.clone(),
                     transform: Transform::from_translation(Vec3::new(
-                        0., 27., 0.1,
+                        0., 27., 0.000001,
                     )),
                     ..Default::default()
                 })
