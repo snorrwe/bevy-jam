@@ -6,6 +6,21 @@ workspace = "../.."
 
 [dependencies]
 goo-vs-goblins = { package = "goo-vs-goblins", path = "../.." }
-bevy = "0.8"
 image = "0.24.3"
 winit = "0.26.1"
+
+[dependencies.bevy]
+version = "0.8.1"
+default-features = false
+features = [
+  "animation",
+  "bevy_asset",
+  "bevy_gilrs",
+  "bevy_scene",
+  "bevy_winit",
+  "render",
+  "png",
+  "hdr",
+  "x11",
+  "filesystem_watcher",
+]
