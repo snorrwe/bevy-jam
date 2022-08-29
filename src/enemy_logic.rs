@@ -40,6 +40,7 @@ enum EnemyTypesToSpawn {
     Healer,
     BloodrockNode,
     Boss1,
+    Boss2,
 }
 
 #[derive(Clone)]
@@ -170,7 +171,6 @@ pub fn get_test_level() -> Level {
                     vec![
                         EnemyTypesToSpawn::Piker,
                         EnemyTypesToSpawn::Piker,
-                        EnemyTypesToSpawn::Healer,
                         EnemyTypesToSpawn::Piker,
                         EnemyTypesToSpawn::Piker,
                     ],
@@ -184,16 +184,121 @@ pub fn get_test_level() -> Level {
                         EnemyTypesToSpawn::Armored,
                         EnemyTypesToSpawn::Ranged,
                         EnemyTypesToSpawn::Ranged,
-                        EnemyTypesToSpawn::Healer,
                         EnemyTypesToSpawn::Ranged,
                     ],
                     Vec3::new(-1500., 0., 0.),
                 )],
                 time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
             },
+            Wave {
+                spawn_data: vec![(
+                    vec![
+                        EnemyTypesToSpawn::Thrash,
+                        EnemyTypesToSpawn::Thrash,
+                        EnemyTypesToSpawn::Ranged,
+                        EnemyTypesToSpawn::Boss1,
+                    ],
+                    Vec3::new(0., -1500., 0.),
+                )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
+            },
+            Wave {
+                spawn_data: vec![
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Armored,
+                            EnemyTypesToSpawn::Armored,
+                        ],
+                        Vec3::new(1200., 0., 0.),
+                    ),
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Armored,
+                            EnemyTypesToSpawn::Armored,
+                        ],
+                        Vec3::new(-1200., 0., 0.),
+                    ),
+                ],
+                time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
+            },
+            Wave {
+                spawn_data: vec![
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Ranged,
+                        ],
+                        Vec3::new(1200., 0., 0.),
+                    ),
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Ranged,
+                            EnemyTypesToSpawn::Ranged,
+                        ],
+                        Vec3::new(-1200., 0., 0.),
+                    ),
+                ],
+                time_to_spawn_after_last_wave: Timer::from_seconds(15., false),
+            },
+            Wave {
+                spawn_data: vec![
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                        ],
+                        Vec3::new(1200., 0., 0.),
+                    ),
+                    (
+                        vec![
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                            EnemyTypesToSpawn::Thrash,
+                        ],
+                        Vec3::new(-1200., 0., 0.),
+                    ),
+                ],
+                time_to_spawn_after_last_wave: Timer::from_seconds(5., false),
+            },
+            Wave {
+                spawn_data: vec![(
+                    vec![
+                        EnemyTypesToSpawn::Healer,
+                        EnemyTypesToSpawn::Healer,
+                        EnemyTypesToSpawn::Boss2,
+                    ],
+                    Vec3::new(-1200., 1200., 0.),
+                )],
+                time_to_spawn_after_last_wave: Timer::from_seconds(5., false),
+            },
         ],
         current_wave_index: 0,
     };
+}
+
+fn move_enemies_to_arena(
+    mut enemies: Query<(&mut Transform, &Velocity), With<BasicEnemyLogic>>,
+    time: Res<GameTime>,
+) {
+    for (mut tr, vel) in enemies.iter_mut() {
+        if tr.translation.x < -1000.
+            || tr.translation.x > 700.
+            || tr.translation.y < -650.
+            || tr.translation.y > 650.
+        {
+            let pos = tr.translation;
+            tr.translation += (Vec3::new(0., 0., 0.) - pos)
+                .truncate()
+                .normalize()
+                .extend(0.)
+                * vel.0
+                * 1.2
+                * time.delta_seconds();
+        }
+    }
 }
 
 fn level_progresser_system(
@@ -408,6 +513,7 @@ fn spawn_enemy_based_on_type(
             });
         }
         EnemyTypesToSpawn::Boss1 => {}
+        EnemyTypesToSpawn::Boss2 => {}
         EnemyTypesToSpawn::BloodrockNode => {
             spawn_bloodrock_node(&mut cmd, &resource_assets, pos)
         }
@@ -583,7 +689,8 @@ impl Plugin for EnemyLogicPlugin {
                 SystemSet::on_update(SceneState::InGame)
                     .with_system(enemy_spawner_system)
                     .with_system(enemy_targetting_logic_system)
-                    .with_system(level_progresser_system),
+                    .with_system(level_progresser_system)
+                    .with_system(move_enemies_to_arena),
             );
     }
 }

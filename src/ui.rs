@@ -1,4 +1,5 @@
 use crate::{
+    audio::Options,
     easing::Easing,
     enemy_logic::LevelManager,
     game::{BloodrockAmount, MaxSupplyAmount},
@@ -9,7 +10,8 @@ use crate::{
 use bevy::prelude::*;
 pub struct UIPlugin;
 use bevy::app::AppExit;
-use bevy_egui::{egui, EguiContext, EguiSettings};
+use bevy_egui::{egui, EguiContext};
+use rand::Rng;
 
 #[derive(Component)]
 pub struct MainInGameNode;
@@ -61,6 +63,9 @@ fn update_supply_text(
 }
 #[derive(Component)]
 pub struct FaderScreenComponent;
+
+#[derive(Component)]
+pub struct TipTextComponent;
 
 fn setup_in_game_ui(
     mut commands: Commands,
@@ -147,6 +152,39 @@ fn setup_in_game_ui(
                                 },
                             ))
                             .insert(EndGameTextComponent);
+                    });
+
+                child
+                    .spawn_bundle(NodeBundle {
+                        style: Style {
+                            position_type: PositionType::Absolute,
+                            position: UiRect {
+                                right: Val::Auto,
+                                left: Val::Percent(0.),
+                                bottom: Val::Percent(10.),
+                                top: Val::Auto,
+                            },
+
+                            size: Size::new(Val::Percent(100.0), Val::Auto),
+                            justify_content: JustifyContent::Center,
+                            align_items: AlignItems::FlexEnd,
+                            ..Default::default()
+                        },
+                        color: UiColor(Color::NONE),
+                        ..Default::default()
+                    })
+                    .with_children(|child| {
+                        child
+                            .spawn_bundle(TextBundle::from_section(
+                                "",
+                                TextStyle {
+                                    font: asset_server
+                                        .load("fonts/FiraSans-Bold.ttf"),
+                                    font_size: 30.0,
+                                    color: Color::WHITE,
+                                },
+                            ))
+                            .insert(TipTextComponent);
                     });
 
                 child
@@ -555,6 +593,7 @@ fn destroy_main_menu(
 fn ui_menus_system(
     mut egui_ctx: ResMut<EguiContext>,
     mut ui_state: ResMut<UIState>,
+    mut options: ResMut<Options>,
 ) {
     match *ui_state {
         UIState::Options => {
@@ -590,6 +629,26 @@ fn ui_menus_system(
                     };
 
                     ui.vertical_centered(|ui| {
+                        ui.add_space(20.);
+                        ui.label("Options");
+                        ui.add_space(40.);
+                        ui.label("Master volume");
+                        ui.add_sized(
+                            [200.0, 50.0],
+                            egui::Slider::new(
+                                &mut options.master_volume,
+                                0.0..=100.0,
+                            ),
+                        );
+                        ui.label("Music volume");
+                        ui.add_sized(
+                            [200.0, 50.0],
+                            egui::Slider::new(
+                                &mut options.music_volume,
+                                0.0..=100.0,
+                            ),
+                        );
+                        ui.add_space(20.);
                         ui.separator();
                         if ui
                             .add_sized(
@@ -735,16 +794,31 @@ fn end_game_manager_system(
     mut end_game_manager: ResMut<EndGameManager>,
     time: Res<GameTime>,
     mut end_game_text: Query<&mut Text, With<EndGameTextComponent>>,
+    mut tip_text: Query<
+        &mut Text,
+        (With<TipTextComponent>, Without<EndGameTextComponent>),
+    >,
     mut egui_ctx: ResMut<EguiContext>,
     mut app_state: ResMut<State<SceneState>>,
     mut cmd: Commands,
     fader_screen: Query<Entity, With<FaderScreenComponent>>,
+    mut tip_index: Local<usize>,
 ) {
     match end_game_manager.state {
         EndGameState::Lose => {
+            let tips = [
+                "Combine a swordsman and a marksman to get a piker!",
+                "Try to save your workers, a good economy is key!",
+                "Pikers are good against armored units!",
+                "Combine a marksman and a worker to get a healer!",
+                "Combine a swordsman and a worker to get a tank!",
+                "Having a good mixture of units is key!",
+            ];
             if end_game_manager.time_to_fade_in.elapsed()
                 == Duration::from_millis(0)
             {
+                let mut rng = rand::thread_rng();
+                *tip_index = rng.gen_range(0..tips.len());
                 for e in fader_screen.iter() {
                     cmd.entity(e).insert(Fade {
                         start_color: Color::rgba(0., 0., 0., 0.),
@@ -758,6 +832,10 @@ fn end_game_manager_system(
             if end_game_manager.time_to_fade_in.finished() {
                 for mut text in end_game_text.iter_mut() {
                     text.sections[0].value = format!("You lost!");
+                }
+                for mut text in tip_text.iter_mut() {
+                    text.sections[0].value =
+                        format!("Tip: {}", tips[*tip_index]);
                 }
             }
         }
@@ -779,6 +857,11 @@ fn end_game_manager_system(
             if end_game_manager.time_to_fade_in.finished() {
                 for mut text in end_game_text.iter_mut() {
                     text.sections[0].value = format!("You win!");
+                }
+
+                for mut text in tip_text.iter_mut() {
+                    text.sections[0].value =
+                        format!("Thanks for playing our game!");
                 }
             }
         }

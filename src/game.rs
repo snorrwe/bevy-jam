@@ -967,8 +967,8 @@ fn spawn_stuff(
             time_to_stop_moving: Timer::from_seconds(0.3, false),
         })
         .insert(Health {
-            current_health: 30.,
-            max_health: 30.,
+            current_health: 10.,
+            max_health: 10.,
             armor: 0.,
         })
         .with_children(|child| {

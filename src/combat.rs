@@ -16,7 +16,6 @@ use bevy::prelude::*;
 pub enum AttackType {
     Melee,
     Ranged,
-    None,
 }
 
 #[derive(Component)]
@@ -408,7 +407,6 @@ fn combat_system(
                                     },
                                 );
                             }
-                            AttackType::None => {}
                         }
                     }
                 }
